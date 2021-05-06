@@ -1,0 +1,52 @@
+# See: https://rspamd.com/doc/modules/milter_headers.html
+
+#  Enables x-spam, x-spamd-result, x-rspamd-server and x-rspamd-queue-id
+extended_spam_headers = false;
+
+# List of headers to be enabled for authenticated users (default empty)
+#authenticated_headers = ["authentication-results"];
+
+# Set false to always add headers for local IPs (default true)
+skip_local = false;
+
+# Set false to always add headers for authenticated users (default true)
+skip_authenticated = false;
+
+use = ["x-spamd-bar","x-spam-level","x-spam-status","my-x-spam-score","x-virus"];
+
+# See: https://groups.google.com/forum/#!topic/rspamd/fEdbnG0J18I
+custom {
+   my-x-spam-score = <<EOD
+     return function(task, common_meta)
+       local sc = common_meta['metric_score'] or task:get_metric_score()
+       -- return no error
+       return nil,
+       -- header(s) to add
+       {['X-Spam-Score'] = string.format('%.2f', sc[1])},
+       -- header(s) to remove
+       {['X-Spam-Score'] = 1},
+       -- metadata to store
+       {}
+   end
+EOD;
+}
+
+# this is where we may configure our selected routines
+# Read: https://rspamd.com/doc/modules/milter_headers.html#x-rspamd-server-158
+routines {
+  # settings for x-spamd-bar routine
+  x-rspamd-server {
+    # effectively hides the hostname
+    header = 'X-Rspamd-Server';
+    remove = 0;
+    hostname = mail;
+  }
+  x-virus {
+    header = "X-Virus";
+    remove = 1; # Remove an already existing X-Virus header first
+    # The following setting is an empty list by default and required to be set
+    # These are user-defined symbols added by the antivirus module
+    symbols = ["CLAM_VIRUS","JUST_EICAR"];
+  }
+  # other routines...
+}

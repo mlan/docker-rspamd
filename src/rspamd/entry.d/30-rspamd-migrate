@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# 30-rspamd-migrate
+#
+# Try to make configs compatible with new version if MIGRATE_CONFIG is defined.
+# Set MIGRATE_CONFIG=1 2 3 to list of fixes or MIGRATE_CONFIG=all to attempt all fixes.
+#
+rspamd_apply_migrate_fixes() {
+	local applied
+	if (dc_is_installed rspamd && [ -n "$MIGRATE_CONFIG" ]); then
+		for fix in ${MIGRATE_CONFIG/all/1 2}; do # list all fixes here
+		case $fix in
+		1)	# create rspamd dirs in persistent volume
+			dc_persist_dirs $DOCKER_MILT_DIR $DOCKER_MILT_LIB $DOCKER_DB_DIR $DOCKER_DB_LIB
+			chown $DOCKER_MILT_RUNAS: ${DOCKER_PERSIST_DIR}$DOCKER_MILT_LIB
+			chown $DOCKER_DB_RUNAS: ${DOCKER_PERSIST_DIR}$DOCKER_DB_LIB
+			;;
+		2)	# move and register DKIM signing key TODO
+			mkdir -p $DOCKER_DKIM_LIB
+			;;
+		*) fix= ;;
+		esac
+		if [ -n "$fix" ]; then
+			applied="$applied $fix"
+		fi
+		done
+		dc_log 5 "Applied fixes;$applied to configuration since MIGRATE_CONFIG=$MIGRATE_CONFIG"
+	fi
+}
+
+#
+# run
+#
+rspamd_apply_migrate_fixes

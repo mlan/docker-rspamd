@@ -1,0 +1,86 @@
+#!/bin/sh
+#
+# 10-rspamd-common
+#
+# https://linuxize.com/post/install-and-integrate-rspamd/#configure-rspamd
+# https://www.benhup.com/freebsd/clamav-antivirus-for-rspamd-anti-spam-install
+# Define variables and functions used during container initialization.
+#
+# Defined in Dockerfile:
+# DOCKER_MILT_RUNAS DOCKER_MILT_LIB DOCKER_DKIM_LIB
+#
+RSPAMD_DKIM_SIGNING_CF=${RSPAMD_DKIM_SIGNING_CF-$DOCKER_MILT_LOCAL_DIR/dkim_signing.conf}
+
+##
+## Configure milter. More information can be found at links below.
+## https://rspamd.com/doc/integration.html#configuring-postfix
+## Skip mail without checks if something goes wrong
+##
+#rspamd_setup_postfix() {
+#	if dc_is_installed rspamd-proxy; then
+#		dc_log 5 "[rspamd] Configuring postfix"
+#		postconf smtpd_milters=unix:private/milter
+#		postconf milter_default_action=accept
+#	fi
+#}
+
+#
+# DKIM Signing
+# https://rspamd.com/doc/modules/dkim_signing.html
+#
+rspamd_setup_dkim() {
+	# generate and activate dkim domainkey.
+	# in case of multi domain generate key for first domain only, but accept it
+	# to be used for all domains specified.
+	local domains=${MAIL_DOMAIN-$(hostname -d)}
+	local domain_main=$(echo $domains | sed 's/\s.*//')
+	local user=$DOCKER_MILT_RUNAS
+	local bits=${DKIM_KEYBITS-2048}
+	local selector=${DKIM_SELECTOR}
+	local keyfile=$DOCKER_DKIM_LIB/$domain_main.$selector.key
+	local txtfile=$DOCKER_DKIM_LIB/$domain_main.$selector.key.pub
+	local keystring="$DKIM_PRIVATEKEY"
+	if (dc_is_installed rspamd && [ -n "$selector" ] && [ -n "$domain_main" ]); then
+		dc_log 5 "[rspamd] Setting dkim selector and domain to $selector and $domain_main"
+		mkdir -p $DOCKER_DKIM_LIB
+		# insert config statements just before last line
+		dc_cond_append -i $RSPAMD_DKIM_SIGNING_CF 'selector = "'$selector'";'
+		if [ -n "$keystring" ]; then
+			if [ -e $keyfile ]; then
+				dc_log 4 "[rspamd] Overwriting private dkim key here: $keyfile"
+			else
+				dc_log 5 "[rspamd] Writing private dkim key here: $keyfile"
+			fi
+			if echo "$keystring" | grep "PRIVATE KEY" - > /dev/null; then
+				echo "$keystring" fold -w 64 > $keyfile
+			else
+				echo "-----BEGIN RSA PRIVATE KEY-----" > $keyfile
+				echo "$keystring" | fold -w 64 >> $keyfile
+				echo "-----END RSA PRIVATE KEY-----" >> $keyfile
+			fi
+		fi
+		if [ ! -e $keyfile ]; then
+			dc_log 4 "[rspamd] Generating dkim key: $keyfile"
+			local message="$(rspamadm dkim_keygen -d $domain_main -d $selector -b $bits -k $keyfile 2>&1)"
+			dc_log 4 "$message"
+			echo "$message" > $txtfile
+		fi
+		dc_cond_chown $user $DOCKER_DKIM_LIB
+	fi
+}
+
+#
+# Monitor Kopano spam dirs KOPANO_SPAMD_LIB
+#
+rspamd_monitor_spamd() {
+	if (dc_is_installed rspamd-client && [ -n "$KOPANO_SPAMD_LIB" ] && [ -d $KOPANO_SPAMD_LIB ]); then
+		local service
+		for watchdir in $KOPANO_SPAMD_LIB/*; do
+			if [ -d $watchdir ]; then
+				service="spamd-$(basename $watchdir)"
+				dc_log 5 "[rspamd] Setting up $service service."
+				docker-service.sh "-n $service $(which inotifyd) $(which rspamd-learn.sh) $watchdir:n"
+			fi
+		done
+	fi
+}
