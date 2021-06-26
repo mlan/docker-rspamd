@@ -17,7 +17,6 @@ This (non official) repository provides dockerized mail filter [anti-spam](https
 - Consolidated configuration and run data under `/srv` to facilitate [persistent storage](#persistent-storage)
 - Simplified configuration of [DKIM](https://en.wikipedia.org/wiki/DomainKeys_Identified_Mail) keys using environment variables
 - [Kopano-spamd](#kopano-spamd-integration-with-mlankopano) integration with [mlan/kopano](https://github.com/mlan/docker-kopano)
-- Multi-staged build providing the images `mini`, `base` and `full`
 - Configuration using [environment variables](#environment-variables)
 - [Log](#logging-syslog_level-log_level-sa_debug) directed to docker daemon with configurable level
 - Makefile which can build images and do some management and testing

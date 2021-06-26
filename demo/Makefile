@@ -352,8 +352,8 @@ mta-test_imaps:
 	--ssl --anyauth -k -u $(AD_USR_CN):$(AD_USR_PW) $(CURL_OPT)
 
 mta-man:
-	docker-compose exec mta apk --no-cache --update add man-db man-pages apk-tools-doc \
-	postfix-doc cyrus-sasl-doc dovecot-doc clamav-doc rspamd-doc
+	docker-compose exec mta apk --no-cache --update add \
+	man-db man-pages apk-tools-doc postfix-doc cyrus-sasl-doc dovecot-doc
 
 filt-init_rspamd:
 	docker-compose exec filt sh -c 'rspamadm configwizard; sv restart rspamd'
@@ -370,6 +370,10 @@ filt-clamd_reload:
 filt-tools:
 	docker-compose exec filt apk --no-cache --update add \
 	nano less lsof htop openldap-clients bind-tools iputils strace iproute2
+
+filt-man:
+	docker-compose exec filt apk --no-cache --update add \
+	man-db man-pages apk-tools-doc clamav-doc rspamd-doc
 
 filt-apk_list:
 	docker-compose exec filt /bin/sh -c 'for pkg in $$(apk info 2>/dev/null); do printf "%9s %3s %s\n" $$(apk info -s $$pkg 2>/dev/null | sed -n "2{p;q}") $$pkg; done | sort | sort -k 2,2'

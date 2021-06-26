@@ -5,10 +5,13 @@
 
 -include    *.mk
 
-TST_REPO ?= mlan/postfix-amavis
+TST_REPO ?= mlan/rspamd
 TST_VER  ?= latest
+TST_NAME ?= filt
 _ver      = $(if $(findstring latest,$(1)),$(2),$(2)-$(1))
 
+MTA_REPO ?= mlan/postfix
+MTA_VER  ?= latest
 MTA_LIST ?= srv cli
 CNT_LIST ?= $(MTA_LIST) auth db
 TST_NAME ?= test
@@ -203,7 +206,7 @@ variables:
 ps:
 	docker ps -a
 
-test-all: test-up_0 $(addprefix test_,1 2 3 4 5 6 7 8 9)
+test-all: test-up_0 $(addprefix test_,1 2)
 	
 
 test_%: test-up_% test-waitl_% test-logs_% test-mail_% test-down_%
@@ -218,20 +221,10 @@ test-up_0:
 	# run containers see if there are logs and stop.
 	#
 	#
-	docker run -d --name $(SRV_NAME) $(TST_REPO):$(call _ver,$(TST_VER),mini)
+	docker run -d --name $(TST_NAME) $(TST_REPO):$(call _ver,$(TST_VER),full)
 	sleep $(TST_W8L1)
-	docker container logs $(SRV_NAME) | grep 'docker-entrypoint.sh'
-	docker rm -f $(SRV_NAME)
-	sleep $(TST_W8S1)
-	docker run -d --name $(SRV_NAME) $(TST_REPO):$(call _ver,$(TST_VER),base)
-	sleep $(TST_W8L1)
-	docker container logs $(SRV_NAME) | grep 'docker-entrypoint.sh'
-	docker rm -f $(SRV_NAME)
-	sleep $(TST_W8S1)
-	docker run -d --name $(SRV_NAME) $(TST_REPO):$(call _ver,$(TST_VER),full)
-	sleep $(TST_W8L1)
-	docker container logs $(SRV_NAME) | grep 'docker-entrypoint.sh'
-	docker rm -f $(SRV_NAME)
+	docker container logs $(TST_NAME) | grep 'docker-entrypoint.sh'
+	docker rm -f $(TST_NAME)
 	sleep $(TST_W8S1)
 	#
 	#
@@ -244,90 +237,7 @@ test-up_1: test-up-net
 	#
 	#
 	#
-	# test (1) basic mta function and virtual alias lookup
-	#
-	# send: curl smtp://clt -> clt smtp://srv -> srv postfix mbox:$(AD_USR_BX)
-	# recv: cat srv mbox:$(AD_USR_BX)
-	#
-	#
-	docker run -d $(SRV_ENV) \
-		-e MAIL_BOXES="$(TST_BOX)" -e MAIL_ALIASES="$(TST_ALS)" \
-		$(TST_REPO):$(call _ver,$(TST_VER),mini)
-	docker run -d $(CLT_ENV) \
-		-e RELAYHOST=[$(SRV_NAME)] -e MYDESTINATION= \
-		$(TST_REPO):$(call _ver,$(TST_VER),mini)
-
-test-up_2: test-up-net test-up-auth_2
-	#
-	#
-	#
-	# test (2) basic mta function and ldap lookup
-	#
-	# send: curl smtp://clt -> clt smtp://srv -> srv postfix mbox:$(AD_USR_AD)
-	# recv: cat srv mbox:$(AD_USR_AD)
-	#
-	#
-	docker run -d $(SRV_ENV) $(ADLU_ENV) \
-		$(TST_REPO):$(call _ver,$(TST_VER),mini)
-	docker run -d $(CLT_ENV) -e RELAYHOST=[$(SRV_NAME)] -e MYDESTINATION= \
-		$(TST_REPO):$(call _ver,$(TST_VER),mini)
-
-test-up_3: test-up-net test-up-db_3 acme/acme.json
-	#
-	#
-	#
-	# test (3) basic mta function and mysql lookup and imap
-	#
-	# send: curl smtp://clt -> clt smtp://srv -> srv dovecot mbox
-	# recv: imaps://srv/inbox
-	#
-	#
-	docker run -d $(SRV_ENV) $(DBLU_ENV) $(TLS_ENV) $(DOVE_ENV) \
-		$(TST_REPO):$(call _ver,$(TST_VER),base)
-	docker run -d $(CLT_ENV) -e RELAYHOST=[$(SRV_NAME)] -e MYDESTINATION= \
-		$(TST_REPO):$(call _ver,$(TST_VER),mini)
-
-test-up_4: test-up-net test-up-auth_4 acme/acme.json
-	#
-	#
-	#
-	# test (4) ldap sasl, basic and selfsigned tls over smtps, subm w ldap lookup
-	#
-	# send: curl smtps://clt -> clt smtps://srv:587 -> srv dovecot mbox
-	# recv: imaps://srv/inbox
-	#
-	#
-	docker run -d $(SRV_ENV) $(ADAL_ENV) $(TLS_ENV) $(DOVE_ENV) \
-		$(TST_REPO):$(call _ver,$(TST_VER),base)
-	docker run -d $(CLT_ENV) $(ADAU_ENV) -e SMTPD_USE_TLS=yes \
-		-e SMTP_RELAY_HOSTAUTH="[$(SRV_NAME)]:587 $(AD_MX_CN):$(AD_MX_PW)" \
-		-e MYDESTINATION= -e SMTP_TLS_SECURITY_LEVEL=encrypt \
-		$(TST_REPO):$(call _ver,$(TST_VER),base)
-
-test-up_5: test-up-net acme/acme.json
-	#
-	#
-	#
-	# test (5) passwd-file sasl and acme tls over subm
-	#
-	# send: curl smtp://clt -> clt smtps://srv:587 -> srv postfix mbox:$(AD_USR_BX)
-	# recv: cat srv mbox:$(AD_USR_BX)
-	#
-	#
-	docker run -d $(SRV_ENV) $(ACME_ENV) \
-		-e MAIL_BOXES="$(TST_BOX)" \
-		-e SMTPD_SASL_CLIENTAUTH="$(AD_USR_CN):{plain}$(AD_USR_PW) $(EX_MX_CN):{plain}$(EX_MX_PW)" \
-		$(TST_REPO):$(call _ver,$(TST_VER),base)
-	docker run -d $(CLT_ENV) \
-		-e SMTP_RELAY_HOSTAUTH="[$(SRV_NAME)]:587 $(EX_MX_CN):$(EX_MX_PW)" \
-		-e MYDESTINATION= -e SMTP_TLS_SECURITY_LEVEL=encrypt \
-		$(TST_REPO):$(call _ver,$(TST_VER),mini)
-
-test-up_6: test-up-net
-	#
-	#
-	#
-	# test (6) basic milter function and selfsigned tls
+	# test (1) basic milter function and selfsigned tls
 	#
 	# send: curl smtp://clt -> clt smtp://srv -> srv postfix mbox:$(AD_USR_BX)
 	# recv: cat srv mbox:$(AD_USR_BX)
@@ -340,11 +250,11 @@ test-up_6: test-up-net
 		-e MYDESTINATION= -e LOG_LEVEL=$(TST_ALOG) \
 		$(TST_REPO):$(call _ver,$(TST_VER),full)
 
-test-up_7: test-down-vol test-up-net
+test-up_2: test-down-vol test-up-net
 	#
 	#
 	#
-	# test (7) dkim and multiple domains
+	# test (2) dkim and multiple domains
 	#
 	# send: curl smtp://clt -> clt smtp://srv -> srv postfix mbox:$(EX_USR_BX)
 	# recv: cat srv mbox:$(EX_USR_BX)
@@ -356,38 +266,6 @@ test-up_7: test-down-vol test-up-net
 	docker run -d $(CLT_ENV) $(CLTV_ENV) -e DKIM_SELECTOR=$(TST_DK_S) \
 		-e RELAYHOST=[$(SRV_NAME)] \
 		-e MYDESTINATION= -e MAIL_DOMAIN="$(AD_DOM)" \
-		$(TST_REPO):$(call _ver,$(TST_VER),full)
-
-test-up_8: test-up-net test_7
-	#
-	#
-	#
-	# test (8) persistent /srv no env given
-	#
-	# send: curl smtp://clt -> clt smtp://srv -> srv postfix mbox:$(EX_USR_BX)
-	# recv: cat srv mbox:$(EX_USR_BX)
-	#
-	#
-	docker run -d $(SRV_ENV) $(SRVV_ENV) \
-		$(TST_REPO):$(call _ver,$(TST_VER),full)
-	docker run -d $(CLT_ENV) $(CLTV_ENV) \
-		$(TST_REPO):$(call _ver,$(TST_VER),full)
-
-test-up_9: test-up-net test_8
-	#
-	#
-	#
-	# test (9) persistent /srv FORCE_CONFIG
-	#
-	# send: curl smtp://clt -> clt smtp://srv -> srv postfix mbox:$(EX_USR_BX)
-	# recv: cat srv mbox:$(EX_USR_BX)
-	#
-	#
-	docker run -d $(SRV_ENV) $(SRVV_ENV) -e FORCE_CONFIG=true \
-		-e MAIL_BOXES="$(TST_BOX2)" -e MAIL_DOMAIN="$(AD_DOM) $(EX_DOM)" \
-		$(TST_REPO):$(call _ver,$(TST_VER),full)
-	docker run -d $(CLT_ENV) $(CLTV_ENV) \
-		-e RELAYHOST=[$(AUT_NAME)] \
 		$(TST_REPO):$(call _ver,$(TST_VER),full)
 
 test-mail: test-mail_0
@@ -491,12 +369,6 @@ $(addsuffix -pop3,$(MTA_LIST)):
 
 $(addsuffix -sv,$(MTA_LIST)):
 	docker exec -it $(patsubst %-sv,$(TST_NAME)-%,$@) sh -c 'sv status $$SVDIR/*'
-
-$(addsuffix -userdb,$(MTA_LIST)):
-	docker exec -it $(patsubst %-userdb,$(TST_NAME)-%,$@) doveadm user $(AD_USR_CN)
-
-$(addsuffix -doveconf,$(MTA_LIST)):
-	docker exec -it $(patsubst %-doveconf,$(TST_NAME)-%,$@) doveconf -NP
 
 $(addsuffix -regen-edh,$(MTA_LIST)):
 	docker exec -it $(patsubst %-regen-edh,$(TST_NAME)-%,$@) conf update_postfix_dhparam
