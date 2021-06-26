@@ -1,0 +1,95 @@
+options {
+	control_socket = "$RUNDIR/rspamd.sock mode=0660 owner=rspamd";
+	hs_cache_dir = "/var/cache/rspamd/";
+	maps_cache_dir = "/var/cache/rspamd/";
+}
+
+worker {
+	controller {
+		bind_socket = "*v4:11334";
+	}
+	proxy {
+		bind_socket = "*v4:11332";
+		upstream "local" {
+			hosts = "$RUNDIR/normal.sock";
+		}
+	}
+	normal {
+		bind_socket = "$RUNDIR/normal.sock mode=0660 owner=rspamd";
+	}
+	fuzzy {
+		bind_socket = "*v4:11335";
+		# BUG: cannot use unixsocket
+		# bind_socket = "$RUNDIR/fuzzy.sock mode=0660 owner=rspamd";
+	}
+}
+
+fuzzy_check {
+	rule "fuzzy_local" {
+		# BUG: cannot use unixsocket
+		# servers = "$RUNDIR/fuzzy.sock";
+		servers = "127.0.0.1";
+		mime_types [ "*" ]
+	}
+}
+
+redis {
+	servers = "/run/redis/redis.sock";
+}
+
+classifier {
+	bayes {
+		backend = "redis";
+		per_user = true;
+		allow_learn = true;
+	}
+}
+
+arc {
+	use_redis = true;
+}
+
+logging {
+	type = "syslog";
+	level = "warning"; # error warning notice info silent debug
+}
+
+dkim_signing {
+	path = "/var/lib/rspamd/dkim/$domain.$selector.key";
+}
+
+antivirus {
+	clamav {
+		type = "clamav";
+		servers = "/run/clamav/clamd.sock";
+		scan_mime_parts = false;
+		symbol = "CLAM_VIRUS";
+		patterns {
+			VIRUS_EICAR = "Eicar-Signature";
+		}
+	}
+}
+
+metrics {
+	actions {
+		greylist = 4;
+		add_header = 6;
+		rewrite_subject = 8;
+		reject = 15;
+	}
+	group "antivirus" {
+		symbol "VIRUS_EICAR" {
+			weight = 15;
+			description = "Eicar test signature";
+		}
+		symbol "CLAM_VIRUS" {
+			weight = 15;
+			description = "ClamAV found a Virus";
+		}
+	}
+}
+
+#milter_headers {
+#	skip_local = false; # For testing only
+#	use = ["x-spamd-bar", "authentication-results"];
+#}
