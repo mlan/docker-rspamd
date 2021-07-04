@@ -11,6 +11,7 @@
 # Run late
 #
 if dc_is_unlocked; then
+	rspamd_apply_envvars
 	rspamd_setup_dkim
 fi
 rspamd_monitor_spamd

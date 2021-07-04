@@ -7,3 +7,4 @@
 - [rspamd](src/rspamd) Consolidate configuration into [rspamd.conf.docker](src/rspamd/etc/rspamd/rspamd.conf.docker).
 - [rspamd](src/rspamd) Correcting worker configuration in `rspamd.conf.docker`.
 - [docker](Dockerfile) Make sure to merge `rspamd.conf.docker` in `rspamd.conf`.
+- [rspamd](src/rspamd) Configure Rspamd using environment variables.

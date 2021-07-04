@@ -7,7 +7,7 @@
 # Define variables and functions used during container initialization.
 #
 # Defined in Dockerfile:
-# DOCKER_MILT_RUNAS DOCKER_MILT_LIB DOCKER_DKIM_LIB
+# DOCKER_MILT_LOCAL_DIR DOCKER_MILT_RUNAS DOCKER_MILT_LIB DOCKER_DKIM_LIB
 #
 RSPAMD_DKIM_SIGNING_CF=${RSPAMD_DKIM_SIGNING_CF-$DOCKER_MILT_LOCAL_DIR/dkim_signing.conf}
 
@@ -23,6 +23,40 @@ RSPAMD_DKIM_SIGNING_CF=${RSPAMD_DKIM_SIGNING_CF-$DOCKER_MILT_LOCAL_DIR/dkim_sign
 #		postconf milter_default_action=accept
 #	fi
 #}
+
+#
+# Configure Rspamd using environment variables
+#
+rspamd_apply_envvars() {
+	rspamd_apply_envvars_cfg inc
+	rspamd_apply_envvars_cfg conf
+}
+
+#
+# rspamd_apply_envvars_cfg <suffix>
+#
+rspamd_apply_envvars_cfg() {
+	local suffix=$1
+	local locald_basenames="$(rspamd_get_locald_files $suffix)"
+	for basename in $locald_basenames; do
+		local env_var="$(echo $basename | tr '[:lower:]-' '[:upper:]_')"
+		local env_val="$(eval echo \$$env_var)"
+		if [ -n "$env_val" ]; then
+			local cfg_file=$DOCKER_MILT_LOCAL_DIR/$basename.$suffix
+			if [ -e $cfg_file ]; then
+				mv -f $cfg_file $cfg_file.bak
+			fi
+			dc_log 5 "Setting $env_val in $cfg_file"
+			echo "$env_val" > $cfg_file
+		fi
+	done
+}
+
+#
+# rspamd_get_locald_files <suffix>
+#
+rspamd_get_locald_files() { find $DOCKER_MILT_DIR/ -type f -print0 | xargs -0 sed -rn 's/^[ ]*[.]include[^/]+[/]local[.]d[/](.*)[.]'${1-inc}'["]/\1/p' | sort -u ;}
+
 
 #
 # DKIM Signing
