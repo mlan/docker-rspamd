@@ -1,2 +1,0 @@
-.include(try=true,priority=1) "$LOCAL_CONFDIR/rspamd.conf.docker"
-.include(try=true,priority=2) "$LOCAL_CONFDIR/rspamd.conf.envvar"

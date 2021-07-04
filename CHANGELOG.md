@@ -5,3 +5,5 @@
 - [demo](demo/Makefile) Start migration to rspamd.
 - [test](test/Makefile) Start migration to rspamd.
 - [rspamd](src/rspamd) Consolidate configuration into [rspamd.conf.docker](src/rspamd/etc/rspamd/rspamd.conf.docker).
+- [rspamd](src/rspamd) Correcting worker configuration in `rspamd.conf.docker`.
+- [docker](Dockerfile) Make sure to merge `rspamd.conf.docker` in `rspamd.conf`.

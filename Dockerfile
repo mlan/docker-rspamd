@@ -31,6 +31,7 @@ ENV	SVDIR=/etc/service \
 	SYSLOG_LEVEL=5 \
 	SYSLOG_OPTIONS=-SDt
 ENV	DOCKER_MILT_LOCAL_DIR=$DOCKER_MILT_DIR/local.d \
+	DOCKER_MILT_FILE=$DOCKER_MILT_DIR/rspamd.conf \
 	DOCKER_DKIM_LIB=$DOCKER_MILT_LIB/dkim \
 	DOCKER_DB_FILE=$DOCKER_DB_DIR/redis.conf \
 	DOCKER_AVNGN_FILE=$DOCKER_AV_DIR/clamd.conf \
@@ -107,6 +108,7 @@ RUN	source docker-common.sh \
 	&& dc_modify  $DOCKER_AVSIG_FILE LogSyslog yes \
 	&& dc_comment $DOCKER_AVSIG_FILE UpdateLogFile \
 	&& dc_modify  $DOCKER_AVSIG_FILE LogFacility LOG_MAIL \
+	&& echo '.include(try=true; priority=1,duplicate=merge) "$CONFDIR/rspamd.conf.docker"' >> $DOCKER_MILT_FILE \
 	&& echo "This file unlocks the configuration, so it will be deleted after initialization." > $DOCKER_UNLOCK_FILE
 
 #

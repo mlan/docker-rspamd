@@ -4,24 +4,25 @@ options {
 	maps_cache_dir = "/var/cache/rspamd/";
 }
 
-worker {
-	controller {
-		bind_socket = "*v4:11334";
+worker "controller" {
+	bind_socket = "*v4:11334";
+}
+
+worker "rspamd_proxy" {
+	bind_socket = "*v4:11332";
+	upstream "local" {
+		hosts = "$RUNDIR/normal.sock";
 	}
-	proxy {
-		bind_socket = "*v4:11332";
-		upstream "local" {
-			hosts = "$RUNDIR/normal.sock";
-		}
-	}
-	normal {
-		bind_socket = "$RUNDIR/normal.sock mode=0660 owner=rspamd";
-	}
-	fuzzy {
-		bind_socket = "*v4:11335";
-		# BUG: cannot use unixsocket
-		# bind_socket = "$RUNDIR/fuzzy.sock mode=0660 owner=rspamd";
-	}
+}
+
+worker "normal" {
+	bind_socket = "$RUNDIR/normal.sock mode=0660 owner=rspamd";
+}
+
+worker "fuzzy" {
+	bind_socket = "*v4:11335";
+	# BUG: cannot use unixsocket
+	# bind_socket = "$RUNDIR/fuzzy.sock mode=0660 owner=rspamd";
 }
 
 fuzzy_check {
@@ -70,7 +71,7 @@ antivirus {
 	}
 }
 
-metrics {
+metric {
 	actions {
 		greylist = 4;
 		add_header = 6;
