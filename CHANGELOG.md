@@ -8,3 +8,4 @@
 - [rspamd](src/rspamd) Correcting worker configuration in `rspamd.conf.docker`.
 - [docker](Dockerfile) Make sure to merge `rspamd.conf.docker` in `rspamd.conf`.
 - [rspamd](src/rspamd) Configure Rspamd using environment variables.
+- [demo](demo/Makefile) Demo now use Rspamd environment variables.

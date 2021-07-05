@@ -52,7 +52,6 @@ arc {
 
 logging {
 	type = "syslog";
-	level = "warning"; # error warning notice info silent debug
 }
 
 dkim_signing {
@@ -70,27 +69,3 @@ antivirus {
 		}
 	}
 }
-
-metric {
-	actions {
-		greylist = 4;
-		add_header = 6;
-		rewrite_subject = 8;
-		reject = 15;
-	}
-	group "antivirus" {
-		symbol "VIRUS_EICAR" {
-			weight = 15;
-			description = "Eicar test signature";
-		}
-		symbol "CLAM_VIRUS" {
-			weight = 15;
-			description = "ClamAV found a Virus";
-		}
-	}
-}
-
-#milter_headers {
-#	skip_local = false; # For testing only
-#	use = ["x-spamd-bar", "authentication-results"];
-#}

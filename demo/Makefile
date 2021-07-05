@@ -26,14 +26,17 @@ AUW_NAME  = auth-web
 DB_NAME   = db
 DBW_NAME  = db-web
 MTA_NAME  = mta
+FLT_NAME  = filt
 APP_FQDN ?= $(call dkr_srv_ip,$(APP_NAME))
 AUT_FQDN ?= $(call dkr_srv_ip,$(AUT_NAME))
 AUW_FQDN ?= $(call dkr_cnt_ip,$(AUW_NAME))
 DB_FQDN  ?= $(call dkr_srv_ip,$(DB_NAME))
 DBW_FQDN ?= $(call dkr_cnt_ip,$(DBW_NAME))
 MTA_FQDN ?= $(call dkr_srv_ip,$(MTA_NAME))
+FLT_FQDN ?= $(call dkr_srv_ip,$(FLT_NAME))
 
 MAIL_FROM ?= test@my-domain.biz
+MAIL_TYPE ?= text/plain
 
 variables:
 	make -pn | grep -A1 "^# makefile"| grep -v "^#\|^--" | sort | uniq
@@ -203,13 +206,24 @@ kopanoSharedStoreOnly: 1
 kopanoResourceType: publicFolder:Public Stores/public
 endef
 
+PLAIN_SUBJ = Test message.
+PLAIN_MESS = Great news! You can receive email.
+GTUBE_SUBJ = GTUBE spam message.
+GTUBE_MESS = XJS*C4JDBQADN1.NSBN3*2IDNEN*GTUBE-STANDARD-ANTI-UBE-TEST-EMAIL*C.34X
+EICAR_SUBJ = EICAR virus message.
+EICAR_MESS = X5O!P%@AP[4\PZX54(P^)7CC)7}\$$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!\$$H+H*
+EICAR_TYPE = audio/basic
+
 define messid
 $(shell echo $$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c8)@dot.com)
 endef
 
+define head_mail
+@echo -e "From: <$(1)>\nTo: <$(2)>\nDate: $$(date -R)\nMessage-ID: <$(messid)>\nMIME-Version: 1.0\nContent-type: $(if $(5),$(5),$(MAIL_TYPE))\nSubject: $(3)\n\n$(if $(4),$(4),$(PLAIN_MESS))\n" | tee /dev/tty
+endef
+
 define smtp_mail
-@echo -e "From: <$(2)>\nTo: <$(3)>\nDate: $$(date -R)\nMessage-ID: <$(messid)>\nSubject: $(4)\n\
-\n\nGreat news! You can receive email.\n" | tee /dev/tty \
+$(call head_mail,$(2),$(3),$(4),$(5),$(6)) \
 | $(CURL_CMD) $(1) -T - --mail-from $(2) --mail-rcpt $(3) $(CURL_OPT)
 endef
 
@@ -218,21 +232,6 @@ printf "LHLO mx\nMAIL FROM: <$(2)>\nRCPT TO: <$(3)>\nDATA\
 \nFrom: <$(2)>\nTo: <$(3)>\nDate: $$(date -R)\nSubject: $(4)\
 \n\nGreat news! You can receive email.\n.\nQUIT\n" | tee /dev/tty \
 | $(CURL_CMD) $(1) -T - $(CURL_OPT)
-endef
-
-virus_mess = X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*
-
-define gtube_mail
-@echo -e "From: <$(2)>\nTo: <$(3)>\nDate: $$(date -R)\nMessage-ID: <$(messid)>\nSubject: $(4)\n\
-\n\nXJS*C4JDBQADN1.NSBN3*2IDNEN*GTUBE-STANDARD-ANTI-UBE-TEST-EMAIL*C.34X\n" | tee /dev/tty \
-| $(CURL_CMD) $(1) -T - --mail-from $(2) --mail-rcpt $(3) $(CURL_OPT)
-endef
-
-define eicar_mail
-@echo -e "From: <$(2)>\nTo: <$(3)>\nDate: $$(date -R)\nSubject: $(4)\n\
-\nMessage-ID: <$(messid)>\nMIME-Version: 1.0\nContent-type: audio/basic\n\
-\n\nX5O!P%@AP[4\PZX54(P^)7CC)7}\$$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!\$$H+H*\n" | tee /dev/tty \
-| $(CURL_CMD) $(1) -T - --mail-from $(2) --mail-rcpt $(3) $(CURL_OPT)
 endef
 
 export define MAKE_UTILS_CONTAINER
@@ -247,6 +246,7 @@ AUW_FQDN ?= $(AUW_NAME)
 DB_FQDN  ?= $(DB_NAME)
 DBW_FQDN ?= $(DBW_NAME)
 MTA_FQDN ?= $(MTA_NAME)
+FLT_FQDN ?= $(FLT_NAME)
 endef
 
 utils-container:
@@ -297,13 +297,13 @@ mta-init_bayes:
 	docker-compose exec mta sh -c 'rm -f bayesian.database.gz && wget http://artinvoice.hu/spams/bayesian.database.gz && gunzip bayesian.database.gz && sa-learn --restore bayesian.database && chown -R amavis: /var/amavis/.spamassassin && rm -rf bayesian.database'
 
 mta-test_smtp:
-	$(call smtp_mail,smtp://$(MTA_FQDN),$(MAIL_FROM),$(AD_USR_CN)@$(MAIL_DOMAIN),A SMTP test message.)
+	$(call smtp_mail,smtp://$(MTA_FQDN),$(MAIL_FROM),$(AD_USR_CN)@$(MAIL_DOMAIN),$(PLAIN_SUBJ))
 
-mta-test_spam:
-	$(call gtube_mail,smtp://$(MTA_FQDN),$(MAIL_FROM),$(AD_USR_CN)@$(MAIL_DOMAIN),A SMTP bulk message.)
+mta-test_gtube:
+	$(call smtp_mail,smtp://$(MTA_FQDN),$(MAIL_FROM),$(AD_USR_CN)@$(MAIL_DOMAIN),$(GTUBE_SUBJ),$(GTUBE_MESS))
 
-mta-test_virus:
-	$(call eicar_mail,smtp://$(MTA_FQDN),$(MAIL_FROM),$(AD_USR_CN)@$(MAIL_DOMAIN),A SMTP virus message.)
+mta-test_eicar:
+	$(call smtp_mail,smtp://$(MTA_FQDN),$(MAIL_FROM),$(AD_USR_CN)@$(MAIL_DOMAIN),$(EICAR_SUBJ),$(EICAR_MESS),$(EICAR_TYPE))
 
 mta-test_regexp:
 	$(call smtp_mail,smtp://$(MTA_FQDN),$(MAIL_FROM),$(AD_USR_CN)+info@$(MAIL_DOMAIN),A regexp SMTP test message.)
@@ -355,7 +355,7 @@ mta-man:
 	docker-compose exec mta apk --no-cache --update add \
 	man-db man-pages apk-tools-doc postfix-doc cyrus-sasl-doc dovecot-doc
 
-filt-init_rspamd:
+filt-init:
 	docker-compose exec filt sh -c 'rspamadm configwizard; sv restart rspamd'
 
 filt-freshclam_nodns:
@@ -364,7 +364,7 @@ filt-freshclam_nodns:
 filt-clamdtop:
 	docker-compose exec filt clamdtop
 
-filt-clamd_reload:
+filt-reload:
 	docker-compose exec filt /bin/sh -c 'echo RELOAD | nc localhost 3310'
 
 filt-tools:
@@ -380,6 +380,18 @@ filt-apk_list:
 
 filt-web:
 	firefox http://localhost:11334 &
+
+filt-test_plain:
+	$(call head_mail,$(MAIL_FROM),$(AD_USR_CN)@$(MAIL_DOMAIN),$(PLAIN_SUBJ)) \
+	| docker-compose exec -T filt rspamc --hostname localhost
+
+filt-test_gtube:
+	$(call head_mail,$(MAIL_FROM),$(AD_USR_CN)@$(MAIL_DOMAIN),$(GTUBE_SUBJ),$(GTUBE_MESS)) \
+	| docker-compose exec -T filt rspamc --hostname localhost
+
+filt-test_eicar:
+	$(call head_mail,$(MAIL_FROM),$(AD_USR_CN)@$(MAIL_DOMAIN),$(EICAR_SUBJ),$(EICAR_MESS),$(EICAR_TYPE)) \
+	| docker-compose exec -T filt rspamc --hostname localhost
 
 db-init:
 
