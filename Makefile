@@ -5,10 +5,12 @@
 
 -include    *.mk
 
-BLD_ARG  ?= --build-arg DIST=alpine --build-arg REL=3.14
+BLD_ARG  ?= --build-arg DIST=alpine --build-arg REL=3.15
 BLD_REPO ?= mlan/rspamd
 BLD_VER  ?= latest
 BLD_TGT  ?= full
+BLD_TGTS ?= full
+BLD_CMT  ?= HEAD
 
 TST_REPO ?= $(BLD_REPO)
 TST_VER  ?= $(BLD_VER)
@@ -19,17 +21,23 @@ TST_TGTI ?= $(addprefix test_,$(TST_INDX)) $(addprefix test-up_,$(TST_INDX))
 
 export TST_REPO TST_VER
 
-_version  = $(if $(findstring $(BLD_TGT),$(1)),\
-$(if $(findstring latest,$(2)),latest $(1),$(2) $(1)-$(2)),\
-$(if $(findstring latest,$(2)),$(1),$(1)-$(2)))
+push:
+	#
+	# PLEASE REVIEW THESE IMAGES WHICH ARE ABOUT TO BE PUSHED TO THE REGISTRY
+	#
+	@docker image ls $(BLD_REPO)
+	#
+	# ARE YOU SURE YOU WANT TO PUSH THESE IMAGES TO THE REGISTRY? [yN]
+	@read input; [ "$${input}" = "y" ]
+	docker push --all-tags $(BLD_REPO)
 
-build-all: build_full
+build-all: $(addprefix build_,$(BLD_TGTS))
 
 build: build_$(BLD_TGT)
 
 build_%: Dockerfile
 	docker build $(BLD_ARG) --target $* \
-	$(addprefix --tag $(BLD_REPO):,$(call _version,$*,$(BLD_VER))) .
+	$(addprefix --tag $(BLD_REPO):,$(call bld_tags,$*,$(BLD_VER))) .
 
 variables:
 	make -pn | grep -A1 "^# makefile"| grep -v "^#\|^--" | sort | uniq

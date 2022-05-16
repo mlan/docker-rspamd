@@ -10,7 +10,6 @@ TST_VER  ?= latest
 TST_NAME ?= test
 TST_SLOG ?= 7
 TST_FLOG ?= notice
-_ver      = $(if $(findstring latest,$(1)),$(2),$(2)-$(1))
 
 NET_NAME ?= $(TST_NAME)-net
 NET_ENV  ?= --network $(NET_NAME)
@@ -24,7 +23,7 @@ FLT_ENV  ?= \
 --name $(FLT_NAME) \
 -e SYSLOG_LEVEL=$(TST_SLOG) \
 -e 'LOGGING=level="$(TST_FLOG)";' \
--e 'WORKER_CONTROLLER=password="$(FLT_WEB_PW)";' \
+-e 'WORKER_CONTROLLER=enable_password="$(FLT_WEB_PW)";' \
 -e METRICS=$(FLT_METRIC) \
 -v $(FLT_NAME):/srv
 
@@ -63,7 +62,7 @@ ps:
 test-all: $(addprefix test_,1 2)
 	
 
-test_%: test-up_% test-logs_% test-check_% test-down_%
+test_%: test-up_% test-wait_% test-logs_% test-check_% test-down_%
 	
 
 test-up_1:
@@ -73,11 +72,7 @@ test-up_1:
 	# test (1) milter function
 	#
 	#
-	docker run -d $(FLT_ENV) $(TST_REPO):$(call _ver,$(TST_VER),full)
-	#
-	# Wait for freshclam to download signatures.
-	#
-	sleep $(TST_W8L2)
+	docker run -d $(FLT_ENV) $(TST_REPO):$(call bld_tag,full,$(TST_VER))
 
 test-up_2:
 	#
@@ -86,11 +81,7 @@ test-up_2:
 	# test (2) force_config dkim
 	#
 	#
-	docker run -d $(FRC_ENV) $(TST_REPO):$(call _ver,$(TST_VER),full)
-	#
-	# Wait for clamd to load signatures.
-	#
-	sleep $(TST_W8L1)
+	docker run -d $(FRC_ENV) $(TST_REPO):$(call bld_tag,full,$(TST_VER))
 
 test-check_%: test-check_plain_% test-check_gtube_% test-check_eicar_%
 	#
@@ -100,14 +91,23 @@ test-check_%: test-check_plain_% test-check_gtube_% test-check_eicar_%
 	#
 	#
 
+test-wait_%:
+	#
+	# Waiting for clamd to open its tcp socket.
+	#
+	while ! docker exec -i $(FLT_NAME) nc -z localhost 3310; do sleep 5; done
+	#
+	# Ask clamd to reload signatures.
+	#
+	sleep 5
+	docker exec -i $(FLT_NAME) /bin/sh -c 'echo RELOAD | nc localhost 3310'
+	#
+	# Waiting for clamd to activate.
+	#
+	while ! docker container logs $(FLT_NAME) | grep 'Activating'; do sleep 5; done
+
 test-logs_%:
 	docker container logs $(FLT_NAME)
-
-test-waits_%:
-	case $* in [0-5]) sleep $(TST_W8S1);; *) sleep $(TST_W8S2);; esac
-
-test-waitl_%:
-	case $* in [0-5]) sleep $(TST_W8L1);; *) sleep $(TST_W8L2);; esac
 
 test-up-net:
 	docker network create $(NET_NAME) 2>/dev/null || true

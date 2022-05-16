@@ -37,136 +37,48 @@ To exemplify the usage of the tags, lets assume that the latest version is `1.0.
 
 # Usage
 
-Often you want to configure Postfix and its components. There are different methods available to achieve this. Many aspects can be configured using [environment variables](#environment-variables) described below. These environment variables can be explicitly given on the command line when creating the container. They can also be given in an `docker-compose.yml` file, see the [docker compose example](#docker-compose-example) below. Moreover docker volumes or host directories with desired configuration files can be mounted in the container. And finally you can `docker exec` into a running container and modify configuration files directly.
+Often you want to configure Rspamd and its components. There are different methods available to achieve this. Many aspects can be configured using [environment variables](#environment-variables) described below. These environment variables can be explicitly given on the command line when creating the container. They can also be given in an `docker-compose.yml` file, see the [docker compose example](#docker-compose-example) below. Moreover docker volumes or host directories with desired configuration files can be mounted in the container. And finally you can `docker exec` into a running container and modify configuration files directly.
 
 You can start a `mlan/rspamd` container using the destination domain `example.com` and table mail boxes for info@example.com and abuse@example.com by issuing the shell command below.
 
 ```bash
-docker run -d --name mta --hostname mx1.example.com -e MAIL_BOXES="info@example.com abuse@example.com" -p 127.0.0.1:25:25 mlan/rspamd
+docker run -d --name flt -e 'WORKER_CONTROLLER=password="secret";' -p 127.0.0.1:11334:11334 mlan/rspamd
 ```
 
 One convenient way to test the image is to clone the [github](https://github.com/mlan/docker-rspamd) repository and run the [demo](#demo) therein, see below.
 
 ## Docker compose example
 
-An example of how to configure an web mail server using docker compose is given below. It defines 4 services, `app`, `mta`, `db` and `auth`, which are the web mail server, the mail transfer agent, the SQL database and LDAP authentication respectively.
+An example of how to configure an mail filter using docker compose is given below. By it self the mail filter is perhaps not so exiting. A more complete configuration is shown in the [demo](#demo).
 
 ```yaml
 version: '3'
 
 services:
-  app:
-    image: mlan/kopano
-    networks:
-      - backend
-    ports:
-      - "127.0.0.1:8008:80"    # WebApp & EAS (alt. HTTP)
-      - "127.0.0.1:110:110"    # POP3 (not needed if all devices can use EAS)
-      - "127.0.0.1:143:143"    # IMAP (not needed if all devices can use EAS)
-      - "127.0.0.1:8080:8080"  # CalDAV (not needed if all devices can use EAS)
-    depends_on:
-      - auth
-      - db
-      - mta
-    environment: # Virgin config, ignored on restarts unless FORCE_CONFIG given.
-      - USER_PLUGIN=ldap
-      - LDAP_URI=ldap://auth:389/
-      - MYSQL_HOST=db
-      - SMTP_SERVER=mta
-      - LDAP_SEARCH_BASE=${LDAP_BASE-dc=example,dc=com}
-      - LDAP_USER_TYPE_ATTRIBUTE_VALUE=${LDAP_USEROBJ-posixAccount}
-      - LDAP_GROUP_TYPE_ATTRIBUTE_VALUE=${LDAP_GROUPOBJ-posixGroup}
-      - MYSQL_DATABASE=${MYSQL_DATABASE-kopano}
-      - MYSQL_USER=${MYSQL_USER-kopano}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD-secret}
-      - POP3_LISTEN=*:110                       # also listen to eth0
-      - IMAP_LISTEN=*:143                       # also listen to eth0
-      - ICAL_LISTEN=*:8080                      # also listen to eth0
-      - DISABLED_FEATURES=${DISABLED_FEATURES-} # also enable IMAP and POP3
-      - SYSLOG_LEVEL=${SYSLOG_LEVEL-3}
-    volumes:
-      - app-conf:/etc/kopano
-      - app-atch:/var/lib/kopano/attachments
-      - app-sync:/var/lib/z-push
-      - app-spam:/var/lib/kopano/spamd          # kopano-spamd integration
-      - /etc/localtime:/etc/localtime:ro        # Use host timezone
-    cap_add: # helps debugging by allowing strace
-      - sys_ptrace
-
-  mta:
+  flt:
     image: mlan/rspamd
-    hostname: ${MAIL_SRV-mx}.${MAIL_DOMAIN-example.com}
-    networks:
-      - backend
     ports:
-      - "127.0.0.1:25:25"      # SMTP
-    depends_on:
-      - auth
+      - "127.0.0.1:11334:11334" # HTML Rspamd WebGui
     environment: # Virgin config, ignored on restarts unless FORCE_CONFIG given.
-      - MESSAGE_SIZE_LIMIT=${MESSAGE_SIZE_LIMIT-25600000}
-      - LDAP_HOST=auth
-      - VIRTUAL_TRANSPORT=lmtp:app:2003
-      - SMTP_RELAY_HOSTAUTH=${SMTP_RELAY_HOSTAUTH-}
-      - SMTP_TLS_SECURITY_LEVEL=${SMTP_TLS_SECURITY_LEVEL-}
-      - SMTP_TLS_WRAPPERMODE=${SMTP_TLS_WRAPPERMODE-no}
-      - LDAP_USER_BASE=ou=${LDAP_USEROU-users},${LDAP_BASE-dc=example,dc=com}
-      - LDAP_QUERY_FILTER_USER=(&(objectclass=${LDAP_USEROBJ-posixAccount})(mail=%s))
-      - LDAP_QUERY_ATTRS_PASS=uid=user
-      - REGEX_ALIAS=${REGEX_ALIAS-}
-      - DKIM_SELECTOR=${DKIM_SELECTOR-default}
-      - SA_TAG_LEVEL_DEFLT=${SA_TAG_LEVEL_DEFLT-2.0}
-      - SA_DEBUG=${SA_DEBUG-0}
+      - WORKER_CONTROLLER=password="${FLT_PASSWD-secret}";
+      - METRICS=${FLT_METRIC}
       - SYSLOG_LEVEL=${SYSLOG_LEVEL-}
-      - LOG_LEVEL=${LOG_LEVEL-0}
-      - RAZOR_REGISTRATION=${RAZOR_REGISTRATION-}
+      - LOGGING=level="${FILT_LOGGING-error}";
     volumes:
-      - mta:/srv
-      - app-spam:/var/lib/kopano/spamd          # kopano-spamd integration
+      - flt:/srv
       - /etc/localtime:/etc/localtime:ro        # Use host timezone
     cap_add: # helps debugging by allowing strace
       - sys_ptrace
-
-  db:
-    image: mariadb
-    command: ['--log_warnings=1']
-    networks:
-      - backend
-    environment:
-      - LANG=C.UTF-8
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD-secret}
-      - MYSQL_DATABASE=${MYSQL_DATABASE-kopano}
-      - MYSQL_USER=${MYSQL_USER-kopano}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD-secret}
-    volumes:
-      - db:/var/lib/mysql
-      - /etc/localtime:/etc/localtime:ro        # Use host timezone
-
-  auth:
-    image: mlan/openldap
-    networks:
-      - backend
-    environment:
-      - LDAP_LOGLEVEL=parse
-    volumes:
-      - auth:/srv
-      - /etc/localtime:/etc/localtime:ro        # Use host timezone
-
-networks:
-  backend:
 
 volumes:
-  app-atch:
-  app-conf:
-  app-spam:
-  app-sync:
-  auth:
-  db:
-  mta:
+  flt:
 ```
 
 ## Demo
 
-This repository contains a [demo](demo) directory which hold the [docker-compose.yml](demo/docker-compose.yml) file as well as a [Makefile](demo/Makefile) which might come handy. Start with cloning the [github](https://github.com/mlan/docker-rspamd) repository.
+This repository contains a [demo](demo) where 5 services are defined. It is comprised of `app`, `mta`, `flt`, `db` and `auth`, which are the web mail server, the mail transfer agent, the mail filter, the SQL database and LDAP authentication respectively.
+
+You find the demoin the [demo](demo) directory, which hold the [docker-compose.yml](demo/docker-compose.yml) file as well as a [Makefile](demo/Makefile) which might come handy. Start with cloning the [github](https://github.com/mlan/docker-rspamd) repository.
 
 ```bash
 git clone https://github.com/mlan/docker-rspamd.git
@@ -178,7 +90,7 @@ From within the [demo](demo) directory you can start the containers by typing:
 make init
 ```
 
-Then you can assess WebApp on the URL [`http://localhost:8008`](http://localhost:8008) and log in with the user name `demo` and password `demo` . 
+Then you can assess WebApp on the URL [`http://localhost:8008`](http://localhost:8008) and log in with the user name `demo` and password `demo` .
 
 ```bash
 make web
@@ -202,8 +114,8 @@ By default, docker will store the configuration and run data within the containe
 
 To facilitate such approach, to achieve persistent storage, the configuration and run directories of the services has been consolidated to `/srv/etc` and `/srv/var` respectively. So if you to have chosen to use both persistent configuration and run data you can run the container like this:
 
-```
-docker run -d --name mta -v mta:/srv -p 127.0.0.1:25:25 mlan/rspamd
+```bash
+docker run -d --name flt -v flt:/srv -p 127.0.0.1:11334:11334 mlan/rspamd
 ```
 
 When you start a container which creates a new volume, as above, and the container has files or directories in the directory to be mounted (such as `/srv/` above), the directory’s contents are copied into the volume. The container then mounts and uses the volume, and other containers which use the volume also have access to the pre-populated content. More details [here](https://docs.docker.com/storage/volumes/#populate-a-volume-using-a-container).
@@ -223,19 +135,6 @@ In the rare event that want to modify the configuration of an existing container
 
 When you create the `mlan/rspamd` container, you can configure the services by passing one or more environment variables or arguments on the docker run command line. Once the services has been configured a lock file is created, to avoid repeating the configuration procedure when the container is restated.
 
-To see all available Postfix configuration variables you can run `postconf` within the container, for example like this:
-
-```bash
-docker-compose exec mta postconf
-```
-
-If you do, you will notice that configuration variable names are all lower case, but they will be matched with all uppercase environment variables by the container initialization scripts.
-
-Similarly Dovecot configuration variables can be set. One difference is that, to avoid name clashes, the variables are prefixed by `DOVECOT_PREFIX=DOVECOT_`. You can list all Dovecot variables by typing:
-
-```sh
-docker-compose exec mta doveconf
-```
 
 ## Incoming anti-spam and anti-virus
 

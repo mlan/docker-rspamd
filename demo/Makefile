@@ -19,7 +19,8 @@ NET_NAME ?= $(COMPOSE_PROJECT_NAME)_backend
 CURL_OPT ?= -s -v
 TSSL_CMD ?= docker run -i --rm --network $(NET_NAME) drwetter/testssl.sh
 CURL_CMD ?= curl
-webb_cmd ?= firefox $(1) &
+webb_avl := $(shell command -v browse 2> /dev/null || command -v firefox 2> /dev/null)
+webb_cmd ?= $(webb_avl) $(1) &
 APP_NAME  = app
 AUT_NAME  = auth
 AUW_NAME  = auth-web
@@ -33,7 +34,7 @@ AUW_FQDN ?= $(call dkr_cnt_ip,$(AUW_NAME))
 DB_FQDN  ?= $(call dkr_srv_ip,$(DB_NAME))
 DBW_FQDN ?= $(call dkr_cnt_ip,$(DBW_NAME))
 MTA_FQDN ?= $(call dkr_srv_ip,$(MTA_NAME))
-FLT_FQDN ?= $(call dkr_srv_ip,$(FLT_NAME))
+FLT_FQDN ?= $(call dkr_srv_ip,$(FLT_NAME)):11334
 
 MAIL_FROM ?= test@my-domain.biz
 MAIL_TYPE ?= text/plain
@@ -43,7 +44,9 @@ variables:
 
 test: all-test_quiet mta-test_smtp
 
-init: up auth-init db-init app-restart mta-init app-init
+init: up auth-init db-init mta-init app-init
+
+#init: up auth-init db-init app-restart mta-init wait_99 app-init
 
 ps:
 	docker-compose ps
@@ -106,8 +109,7 @@ $(addsuffix -hostaddr,$(SRV_LIST)):
 wait_%:
 	sleep $*
 
-web:
-	$(call webb_cmd,http://$(APP_FQDN))
+web: app-web
 
 auth-init: wait_3 auth-mod_conf auth-add_schema auth-add_data
 
@@ -367,6 +369,9 @@ filt-clamdtop:
 filt-reload:
 	docker-compose exec filt /bin/sh -c 'echo RELOAD | nc localhost 3310'
 
+filt-ping:
+	docker-compose exec filt /bin/sh -c 'echo PING | nc localhost 3310'
+
 filt-tools:
 	docker-compose exec filt apk --no-cache --update add \
 	nano less lsof htop openldap-clients bind-tools iputils strace iproute2
@@ -379,7 +384,9 @@ filt-apk_list:
 	docker-compose exec filt /bin/sh -c 'for pkg in $$(apk info 2>/dev/null); do printf "%9s %3s %s\n" $$(apk info -s $$pkg 2>/dev/null | sed -n "2{p;q}") $$pkg; done | sort | sort -k 2,2'
 
 filt-web:
-	firefox http://localhost:11334 &
+	$(call webb_cmd,http://$(FLT_FQDN))
+
+filt-test: filt-test_plain filt-test_gtube filt-test_eicar
 
 filt-test_plain:
 	$(call head_mail,$(MAIL_FROM),$(AD_USR_CN)@$(MAIL_DOMAIN),$(PLAIN_SUBJ)) \
@@ -409,11 +416,20 @@ db-web-up:
 db-web-down:
 	docker rm -f $(DBW_NAME) || true
 
-app-init: app-public_store app-create_smime
+app-init: app-wait app-public_store app-create_smime
+
+app-wait:
+	#
+	# Waiting for kopano-server to initialize.
+	#
+	time docker-compose logs -f app | sed -n '/Startup succeeded/{p;q}'
+	#
+	# kopano-server ready.
+	#
 
 app-tools:
-	docker-compose exec app apt-get update
-	docker-compose exec app apt-get install --yes \
+	docker-compose exec app apt update
+	docker-compose exec app apt install --yes \
 	less nano ldap-utils htop net-tools lsof iputils-ping dnsutils strace
 
 app-htop: app-tools
@@ -453,6 +469,12 @@ app-test_oof1:
 app-test_oof0:
 	docker-compose exec app kopano-oof -u $(AD_USR_CN) -m 0
 
+app-stats_server:
+	docker-compose exec app kopano-stats --system
+
+app-show_server:
+	docker-compose exec app kopano-stats --top
+
 app-show_user1:
 	docker-compose exec app kopano-admin --details $(AD_USR_CN)
 
@@ -478,6 +500,9 @@ $(addprefix app-parms_,archiver dagent gateway ical ldap search server spamd spo
 app-create_smime: all-create_smime
 	docker cp ssl/ca.crt $(call dkr_srv_cnt,app):/usr/local/share/ca-certificates/$(MAIL_DOMAIN)_CA.crt
 	docker-compose exec app update-ca-certificates
+
+app-web:
+	$(call webb_cmd,http://$(APP_FQDN))
 
 all-test_quiet:
 	$(eval CURL_OPT := -s -S )

@@ -77,7 +77,6 @@ RUN	source docker-common.sh \
 	clamav \
 	clamav-libunrar \
 	unzip \
-	unrar \
 	p7zip \
 	ncurses \
 	redis \
