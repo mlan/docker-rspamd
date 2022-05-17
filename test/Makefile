@@ -72,7 +72,7 @@ test-up_1:
 	# test (1) milter function
 	#
 	#
-	docker run -d $(FLT_ENV) $(TST_REPO):$(call bld_tag,full,$(TST_VER))
+	docker run -d $(FLT_ENV) $(TST_REPO):$(call bld_tag,,$(TST_VER))
 
 test-up_2:
 	#
@@ -81,7 +81,7 @@ test-up_2:
 	# test (2) force_config dkim
 	#
 	#
-	docker run -d $(FRC_ENV) $(TST_REPO):$(call bld_tag,full,$(TST_VER))
+	docker run -d $(FRC_ENV) $(TST_REPO):$(call bld_tag,,$(TST_VER))
 
 test-check_%: test-check_plain_% test-check_gtube_% test-check_eicar_%
 	#

@@ -105,6 +105,18 @@ When you are done testing you can destroy the test containers by typing
 make destroy
 ```
 
+## Rspamd web interface
+
+Rspamd comes with a simple web-based control interface for Rspamd spam filtering system. It provides basic functions for setting metric actions, scores, viewing statistic and learning.
+
+![Rspamd web interface](https://rspamd.com/img/webui.png)
+
+From the [demo](demo) you can assess the Rspamd WebUI on the URL [`http://localhost:11334`](http://localhost:11334) and log in with the password `demo` .
+
+```bash
+make filt-web
+```
+
 ## Persistent storage
 
 By default, docker will store the configuration and run data within the container. This has the drawback that the configurations and queued and quarantined mail are lost together with the container should it be deleted. It can therefore be a good idea to use docker volumes and mount the run directories and/or the configuration directories there so that the data will survive a container deletion.

@@ -5,6 +5,7 @@
 - [repo](.) Based on [mlan/postfix-amavis](https://github.com/mlan/docker-postfix).
 - [repo](ROADMAP.md) Outline approach for configure rspamd using environment variables.
 - [repo](ROADMAP.md) Describe rspamd modules and their configuration using environment variables.
+- [repo](ROADMAP.md) Describe the rspamd web interface.
 - [repo](Makefile) Don't advertize multistage builds yet.
 - [repo](Makefile) Now use functions in `bld.mk`.
 - [demo](demo/Makefile) Start migration to rspamd.
@@ -13,5 +14,6 @@
 - [rspamd](src/rspamd) Configure Rspamd using environment variables.
 - [test](test/Makefile) Rspamd test suite arranged.
 - [test](test/Makefile) Monitor logs to determine when clamd is activated.
+- [test](test/Makefile) Don't advertize multistage builds yet.
 - [demo](demo/Makefile) Demo now use Rspamd environment variables.
 - [demo](demo/Makefile) Monitor logs to determine when clamd is activated.
