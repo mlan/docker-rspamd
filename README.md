@@ -1,13 +1,15 @@
 # The `mlan/rspamd` repository
 
-![travis-ci test](https://img.shields.io/travis/mlan/docker-rspamd.svg?label=build&style=flat-square&logo=travis)
-![docker build](https://img.shields.io/docker/cloud/build/mlan/rspamd.svg?label=build&style=flat-square&logo=docker)
+![travis-ci test](https://img.shields.io/travis/com/mlan/docker-rspamd.svg?label=build&style=flat-square&logo=travis)
+![docker version](https://img.shields.io/docker/v/mlan/rspamd?logo=docker&style=flat-square)
 ![image size](https://img.shields.io/docker/image-size/mlan/rspamd/latest.svg?label=size&style=flat-square&logo=docker)
 ![docker pulls](https://img.shields.io/docker/pulls/mlan/rspamd.svg?label=pulls&style=flat-square&logo=docker)
 ![docker stars](https://img.shields.io/docker/stars/mlan/rspamd.svg?label=stars&style=flat-square&logo=docker)
-![github stars](https://img.shields.io/github/stars/mlan/docker-rspamd.svg?label=stars&style=popout-square&logo=github)
+![github stars](https://img.shields.io/github/stars/mlan/docker-rspamd.svg?label=stars&style=flat-square&logo=github)
 
 This (non official) repository provides dockerized mail filter [anti-spam](https://en.wikipedia.org/wiki/Anti-spam_techniques) and anti-virus filter using [Rspamd](https://rspamd.com/), and [ClamAV](https://www.clamav.net/), which also provides sender authentication using [SPF](https://en.wikipedia.org/wiki/Sender_Policy_Framework) and [DKIM](https://en.wikipedia.org/wiki/DomainKeys_Identified_Mail).
+
+It uses a robust scoring framework and plug-ins to integrate a wide range of advanced heuristic and statistical analysis tests on email headers and body text including text analysis, Bayesian filtering, DNS block-lists, and collaborative filtering databases. Clam AntiVirus is an anti-virus toolkit, designed especially for e-mail scanning on mail gateways.
 
 ## Features
 
@@ -26,14 +28,9 @@ This (non official) repository provides dockerized mail filter [anti-spam](https
 
 ## Tags
 
-The MAJOR.MINOR.PATCH [SemVer](https://semver.org/) is
-used. In addition to the three number version number you can use two or
-one number versions numbers, which refers to the latest version of the 
-sub series. The tag `latest` references the build based on the latest commit to the repository.
+The MAJOR.MINOR.PATCH [SemVer](https://semver.org/) is used. In addition to the three number version number you can use two or one number versions numbers, which refers to the latest version of the sub series. The tag `latest` references the build based on the latest commit to the repository.
 
-The `mlan/rspamd` repository contains a multi staged built. You select which build using the appropriate tag from `mini`, `base` and `full`. The image `mini` only contain Postfix. The image built with the tag `base` extend `mini` to include [Dovecot](https://www.dovecot.org/), which provides mail delivery via IMAP and POP3 and SMTP client authentication as well as integration of [Let’s Encrypt](https://letsencrypt.org/) TLS certificates using [Traefik](https://docs.traefik.io/). The image with the tag `full`, which is the default, extend `base` with anti-spam and ant-virus [milters](https://en.wikipedia.org/wiki/Milter), and sender authentication via [SPF](https://en.wikipedia.org/wiki/Sender_Policy_Framework) and [DKIM](https://en.wikipedia.org/wiki/DomainKeys_Identified_Mail).
-
-To exemplify the usage of the tags, lets assume that the latest version is `1.0.0`. In this case `latest`, `1.0.0`, `1.0`, `1`, `full`, `full-1.0.0`, `full-1.0` and `full-1` all identify the same image.
+To exemplify the usage of version tags, lets assume that the latest version is `1.0.0`. In this case `latest`, `1.0.0`, `1.0` and `1` all identify the same image.
 
 # Usage
 
@@ -135,84 +132,42 @@ In the rare event that want to modify the configuration of an existing container
 
 When you create the `mlan/rspamd` container, you can configure the services by passing one or more environment variables or arguments on the docker run command line. Once the services has been configured a lock file is created, to avoid repeating the configuration procedure when the container is restated.
 
+## MTA integration with [mlan/postfix](https://github.com/mlan/docker-postfix)
 
-## Incoming anti-spam and anti-virus
+The [rspamd proxy worker](https://rspamd.com/doc/workers/rspamd_proxy.html#milter-support) in Milter mode, which is enabled by default, interact with Postfix. Use the [Postfix configuration](https://rspamd.com/doc/integration.html#configuring-postfix) to have Postfix scan messages on Rspamd via the milter protocol. The rspamd proxy worker listens to port `11334` by default.
 
-[Amavis](https://www.amavis.org/) is a high-performance interface between mailer (MTA) and content checkers: virus scanners, and/or [SpamAssassin](https://spamassassin.apache.org/). Apache SpamAssassin is the #1 open source anti-spam platform giving system administrators a filter to classify email and block spam (unsolicited bulk email). It uses a robust scoring framework and plug-ins to integrate a wide range of advanced heuristic and statistical analysis tests on email headers and body text including text analysis, Bayesian filtering, DNS block-lists, and collaborative filtering databases. Clam AntiVirus is an anti-virus toolkit, designed especially for e-mail scanning on mail gateways.
+## Actions
 
-[Vipul's Razor](http://razor.sourceforge.net/) is a distributed, collaborative, spam detection and filtering network. It uses a fuzzy [checksum](http://en.wikipedia.org/wiki/Checksum) technique to identify
-message bodies based on signatures submitted by users, or inferred by
-other techniques such as high-confidence Bayesian or DNSBL entries.
+Unlike SpamAssassin, Rspamd suggests the desired [action](https://rspamd.com/doc/faq.html#what-are-rspamd-actions) for a specific message scanned. This could be treated as a recommendation to MTA what it should do with this message. So Rspamd does not keep any quarantined emails.
 
-AMaViS will only insert mail headers in incoming messages with domain mentioned
-in `MAIL_DOMAIN`. So proper configuration is needed for anti-spam and anti-virus to work.
+## Filter metrics
 
-#### `FINAL_VIRUS_DESTINY`, `FINAL_BANNED_DESTINY`, `FINAL_SPAM_DESTINY`, `FINAL_BAD_HEADER_DESTINY`
+FILT_METRIC='actions {greylist=4;add_header=6;rewrite_subject=8;reject=15;} group "antivirus" { symbol "VIRUS_EICAR" {weight=15;description="Eicar test signature";} symbol "CLAM_VIRUS" {weight=15;description="ClamAV found a Virus";}}'
 
-When an undesirable email is found, the action according to the `FINAL_*_DESTINY` variables will be taken. Possible settings for the `FINAL_*_DESTINY` variables are: `D_PASS`, `D_BOUNCE`,`D_REJECT` and `D_DISCARD`.
+## Antivirus
 
-`D_PASS`: Mail will pass to recipients, regardless of bad contents. `D_BOUNCE`: Mail will not be delivered to its recipients, instead, a non-delivery notification (bounce) will be created and sent to the sender. `D_REJECT`: Mail will not be delivered to its recipients, instead, a reject response will be sent to the upstream MTA and that MTA may create a reject notice (bounce) and return it to the sender. `D_DISCARD`: Mail will not be delivered to its recipients and the sender normally will NOT be notified.
+The Antivirus module provides integration with virus scanners. The `mlan/rspamd` image have [ClamAV](https://www.clamav.net/) configured and installed.
 
-Default settings are: `FINAL_VIRUS_DESTINY=D_DISCARD`, `FINAL_BANNED_DESTINY=D_DISCARD`, `FINAL_SPAM_DESTINY=D_PASS`, `FINAL_BAD_HEADER_DESTINY=D_PASS`.
+### ClamAV virus signatures
 
-#### `SA_TAG_LEVEL_DEFLT`, `SA_TAG2_LEVEL_DEFLT`, `SA_KILL_LEVEL_DEFLT`
+[ClamAV](https://www.clamav.net/) (`clamd`) requires a virus signature database to run. The database is kept up to date with official signatures using `freshclam`, which also runs in the `mlan/rspamd` image.
 
-`SA_TAG_LEVEL_DEFLT=2.0` controls at which level (or above) spam info headers are added to mail. `SA_TAG2_LEVEL_DEFLT=6.2` controls at which level the 'spam detected' headers are added. `SA_KILL_LEVEL_DEFLT=6.9` set the trigger level when spam evasive actions are taken (e.g. blocking mail).
+### ClamAV memory usage
 
-#### `RAZOR_REGISTRATION`
+ClamAV holds search strings and regular expression in memory. The algorithms used are from the 1970s and are very memory efficient. The problem is the huge number of virus signatures. This leads to the algorithms' data-structures growing quite large. Consequently, The minimum recommended system requirements are for using [ClamAV](https://www.clamav.net/documents/introduction) is 1GiB.
+## SPF
 
-Razor, called by SpamAssassin, will check if the signature of the received email is registered in the Razor servers and adjust the spam score accordingly. [Razor](https://cwiki.apache.org/confluence/display/SPAMASSASSIN/RazorAmavisd) can also report detected spam to its servers, but then it needs to use a registered identity.
-
-To register an identity with the Razor server, use `RAZOR_REGISTRATION`. You can request to be know as a certain user name, `RAZOR_REGISTRATION=username:passwd`. If you omit both user name and password, e.g., `RAZOR_REGISTRATION=:`, they will both be assigned to you by the Razor server. Likewise if password is omitted a password will be assigned by the Razor server. Razor users are encouraged
-to use their email addresses as their user name. Example: `RAZOR_REGISTRATION=postmaster@example.com:secret`
-
-### Managing the quarantine
-
-A message is quarantined by being saved in the directory `/var/amavis/quarantine/` allowing manual inspection to determine weather or not to release it. The utility `amavis-ls` allow some simple inspection of what is in the quarantine. To do so type:
-
-```bash
-docker-compose exec mta amavis-ls
-```
-
-A quarantined message receives one additional header field: an
-X-Envelope-To-Blocked. An X-Envelope-To still holds a complete list
-of envelope recipients, but the X-Envelope-To-Blocked only lists its
-subset (in the same order), where only those recipients are listed
-which did not receive a message (e.g. being blocked by virus/spam/
-banning... rules). This facilitates a release of a multi-recipient
-message from a quarantine in case where some recipients had a message
-delivered (e.g. spam lovers) and some had it blocked.
-
-To release a quarantined message type:
-
-```bash
-docker-compose exec mta amavisd-release <file>
-```
-
-## Kopano-spamd integration with [mlan/kopano](https://github.com/mlan/docker-kopano)
-
-[Kopano-spamd](https://kb.kopano.io/display/WIKI/Kopano-spamd) allow users to
-drag messages into the Junk folder triggering the anti-spam filter to learn it
-as spam. If the user moves the message back to the inbox, the anti-spam filter
-will unlearn it.
-
-To allow kopano-spamd integration the kopano and rspamd containers need
-to share the `KOPANO_SPAMD_LIB=/var/lib/kopano/spamd` folder.
-If this directory exists within the
-rspamd container, the spamd-spam and spamd-ham service will be started.
-They will run `sa-learn --spam` or `sa-learn --ham`,
-respectively when a message is placed in either `var/lib/kopano/spamd/spam` or
-`var/lib/kopano/spamd/ham`.
-
-## Incoming SPF sender authentication
+The SPF module performs checks of the sender’s [SPF](http://www.open-spf.org/) policy.
 
 [Sender Policy Framework (SPF)](https://en.wikipedia.org/wiki/Sender_Policy_Framework) is an [email authentication](https://en.wikipedia.org/wiki/Email_authentication) method designed to detect forged sender addresses in emails. SPF allows the receiver to check that an email claiming to come from a specific domain comes from an IP address authorized by that domain's administrators. The list of authorized sending hosts and IP addresses for a domain is published in the [DNS](https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions) records for that domain.
 
-## DKIM sender authentication
+## DKIM
+
+Rspamd is configured to check the digital signature of incoming email as well as add digital signatures to outgoing email.
+
+## DKIM signing
 
 [Domain-Keys Identified Mail (DKIM)](https://en.wikipedia.org/wiki/DomainKeys_Identified_Mail) is an [email authentication](https://en.wikipedia.org/wiki/Email_authentication) method designed to detect forged sender addresses in emails. DKIM allows the receiver to check that an email claimed to have come from a specific [domain](https://en.wikipedia.org/wiki/Domain_name) was indeed authorized by the owner of that domain. It achieves this by affixing a [digital signature](https://en.wikipedia.org/wiki/Digital_signature), linked to a domain name, `MAIL_DOMAIN`, to each outgoing email message, which the receiver can verify by using the DKIM key published in the [DNS](https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions) records for that domain.
-
-amavis is configured to check the digital signature of incoming email as well as add digital signatures to outgoing email.
 
 #### `DKIM_KEYBITS`
 
@@ -227,17 +182,32 @@ Default: `DKIM_SELECTOR=default`
 
 DKIM uses a private and public key pair used for signing and verifying email. A private key is created when the container is created. If you already have a private key you can pass it to the container by using the environment variable `DKIM_PRIVATEKEY`. For convenience the strings `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----` can be omitted form the key string. For example `DKIM_PRIVATEKEY="MIIEpAIBAAKCAQEA04up8hoqzS...1+APIB0RhjXyObwHQnOzhAk"`
 
-The private key is stored here `/var/db/dkim/MAIL_DOMAIN.DKIM_SELECTOR.privkey.pem`, so alternatively you can copy the private key into the container:
+The private key is stored here `/var/lib/rspamd/dkim/MAIL_DOMAIN.DKIM_SELECTOR.key`, so alternatively you can copy the private key into the container:
 
 ```bash
-docker cp $MAIL_DOMAIN.$DKIM_SELECTOR.privkey.pem <container_name>:var/db/dkim
+docker cp $MAIL_DOMAIN.$DKIM_SELECTOR.key <container_name>:var/lib/rspamd/dkim
 ```
 
 If you wish to create a new private key you can run:
 
 ```bash
-docker exec -it <container_name> amavisd genrsa /var/db/dkim/$MAIL_DOMAIN.$DKIM_SELECTOR.privkey.pem $DKIM_KEYBITS
+docker exec -it <container_name> rspamadm dkim_keygen -s $DKIM_SELECTOR -b $DKIM_KEYBITS -d $MAIL_DOMAIN -k /var/lib/rspamd/dkim/$MAIL_DOMAIN.$DKIM_SELECTOR.key
 ```
+
+## Kopano-spamd integration with [mlan/kopano](https://github.com/mlan/docker-kopano)
+
+[Kopano-spamd](https://kb.kopano.io/display/WIKI/Kopano-spamd) allow users to
+drag messages into the Junk folder triggering the anti-spam filter to learn it
+as spam. If the user moves the message back to the inbox, the anti-spam filter
+will unlearn it.
+
+To allow kopano-spamd integration the kopano and rspamd containers need
+to share the `KOPANO_SPAMD_LIB=/var/lib/kopano/spamd` folder.
+If this directory exists within the
+rspamd container, the spamd-spam and spamd-ham service will be started.
+They will run `rspamc learn_spam` or `rspamc learn_ham`,
+respectively when a message is placed in either `var/lib/kopano/spamd/spam` or
+`var/lib/kopano/spamd/ham`.
 
 ## Logging `SYSLOG_LEVEL`
 
@@ -277,10 +247,6 @@ GfWdg7QkdN6kR4V75MFlw624VY35DaXBvnlTJTgRg/EW72O1DiYVThkyCgpSYS8nmEQIDAQAB"
 ```
 
 The receiver can use the public key (value of the p tag) to then decrypt the hash value in the header field, and at the same time recalculate the hash value for the mail message (headers and body) that was received.
-
-## ClamAV, virus signatures and memory usage
-
-ClamAV holds search strings and regular expression in memory. The algorithms used are from the 1970s and are very memory efficient. The problem is the huge number of virus signatures. This leads to the algorithms' data-structures growing quite large. Consequently, The minimum recommended system requirements are for using [ClamAV](https://www.clamav.net/documents/introduction) is 1GiB.
 
 # Implementation
 

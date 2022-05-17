@@ -8,17 +8,12 @@
 BLD_ARG  ?= --build-arg DIST=alpine --build-arg REL=3.15
 BLD_REPO ?= mlan/rspamd
 BLD_VER  ?= latest
-BLD_TGT  ?= full
-BLD_TGTS ?= full
-BLD_CMT  ?= HEAD
 
 TST_REPO ?= $(BLD_REPO)
 TST_VER  ?= $(BLD_VER)
 TST_ENV  ?= -C test
 TST_TGTE ?= $(addprefix test-,all diff down env htop logs check sh sv up)
-TST_INDX ?= 1 2
-TST_TGTI ?= $(addprefix test_,$(TST_INDX)) $(addprefix test-up_,$(TST_INDX))
-
+TST_TGTI ?= test_% test-up_%
 export TST_REPO TST_VER
 
 push:
@@ -31,13 +26,8 @@ push:
 	@read input; [ "$${input}" = "y" ]
 	docker push --all-tags $(BLD_REPO)
 
-build-all: $(addprefix build_,$(BLD_TGTS))
-
-build: build_$(BLD_TGT)
-
-build_%: Dockerfile
-	docker build $(BLD_ARG) --target $* \
-	$(addprefix --tag $(BLD_REPO):,$(call bld_tags,$*,$(BLD_VER))) .
+build: Dockerfile
+	docker build $(BLD_ARG) $(addprefix --tag $(BLD_REPO):,$(call bld_tags,,$(BLD_VER))) .
 
 variables:
 	make -pn | grep -A1 "^# makefile"| grep -v "^#\|^--" | sort | uniq
