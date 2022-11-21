@@ -1,6 +1,6 @@
 # 0.9.0
 
-- [docker](Makefile) Use alpine:3.15 (rspamd:3.2 clamav:0.104.3 redis:6.2.7).
+- [docker](Makefile) Use alpine:3.15 (rspamd:3.3 clamav:0.104.3 redis:7.0.5).
 - [docker](Dockerfile) Make sure to merge `rspamd.conf.docker` in `rspamd.conf`.
 - [repo](.) Based on [mlan/postfix-amavis](https://github.com/mlan/docker-postfix).
 - [repo](ROADMAP.md) Outline approach for configure rspamd using environment variables.
@@ -15,5 +15,6 @@
 - [test](test/Makefile) Rspamd test suite arranged.
 - [test](test/Makefile) Monitor logs to determine when clamd is activated.
 - [test](test/Makefile) Don't advertize multistage builds yet.
+- [test](test/Makefile) Added Bayes initialization.
 - [demo](demo/Makefile) Demo now use Rspamd environment variables.
 - [demo](demo/Makefile) Monitor logs to determine when clamd is activated.

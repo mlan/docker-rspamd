@@ -39,6 +39,9 @@ FLT_FQDN ?= $(call dkr_srv_ip,$(FLT_NAME)):11334
 MAIL_FROM ?= test@my-domain.biz
 MAIL_TYPE ?= text/plain
 
+HAM_URL ?= https://www2.aueb.gr/users/ion/data/enron-spam/raw/ham/beck-s.tar.gz
+SPAM_URL ?= https://www2.aueb.gr/users/ion/data/enron-spam/raw/spam/BG.tar.gz
+
 variables:
 	make -pn | grep -A1 "^# makefile"| grep -v "^#\|^--" | sort | uniq
 
@@ -295,9 +298,6 @@ auth-web-down:
 
 mta-init:
 
-mta-init_bayes:
-	docker-compose exec mta sh -c 'rm -f bayesian.database.gz && wget http://artinvoice.hu/spams/bayesian.database.gz && gunzip bayesian.database.gz && sa-learn --restore bayesian.database && chown -R amavis: /var/amavis/.spamassassin && rm -rf bayesian.database'
-
 mta-test_smtp:
 	$(call smtp_mail,smtp://$(MTA_FQDN),$(MAIL_FROM),$(AD_USR_CN)@$(MAIL_DOMAIN),$(PLAIN_SUBJ))
 
@@ -360,9 +360,6 @@ mta-man:
 filt-init:
 	docker-compose exec filt sh -c 'rspamadm configwizard; sv restart rspamd'
 
-filt-freshclam_nodns:
-	docker-compose exec filt freshclam --no-dns
-
 filt-clamdtop:
 	docker-compose exec filt clamdtop
 
@@ -374,7 +371,7 @@ filt-ping:
 
 filt-tools:
 	docker-compose exec filt apk --no-cache --update add \
-	nano less lsof htop openldap-clients bind-tools iputils strace iproute2
+	nano less lsof htop openldap-clients bind-tools iputils strace iproute2 curl
 
 filt-man:
 	docker-compose exec filt apk --no-cache --update add \
@@ -402,6 +399,13 @@ filt-test_eicar:
 
 filt-passwd:
 	docker-compose exec filt rspamadm pw
+
+filt-bayes_init:
+	docker-compose exec filt sh -c 'mkdir -p /tmp/ham && wget --no-check-certificate -O - $(HAM_URL)  | tar -xzC /tmp/ham && rspamc learn_ham /tmp/ham'
+	docker-compose exec filt sh -c 'mkdir -p /tmp/spam && wget --no-check-certificate -O - $(SPAM_URL) | tar -xzC /tmp/spam && rspamc learn_spam /tmp/spam'
+
+filt-stat:
+	docker-compose exec filt rspamc stat
 
 db-init:
 

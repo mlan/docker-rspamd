@@ -154,7 +154,7 @@ Unlike SpamAssassin, Rspamd suggests the desired [action](https://rspamd.com/doc
 
 ## Filter metrics
 
-FILT_METRIC='actions {greylist=4;add_header=6;rewrite_subject=8;reject=15;} group "antivirus" { symbol "VIRUS_EICAR" {weight=15;description="Eicar test signature";} symbol "CLAM_VIRUS" {weight=15;description="ClamAV found a Virus";}}'
+`FILT_METRIC='actions {greylist=4;add_header=6;rewrite_subject=8;reject=15;} group "antivirus" { symbol "VIRUS_EICAR" {weight=15;description="Eicar test signature";} symbol "CLAM_VIRUS" {weight=15;description="ClamAV found a Virus";}}'`
 
 ## Antivirus
 
@@ -208,18 +208,12 @@ docker exec -it <container_name> rspamadm dkim_keygen -s $DKIM_SELECTOR -b $DKIM
 
 ## Kopano-spamd integration with [mlan/kopano](https://github.com/mlan/docker-kopano)
 
-[Kopano-spamd](https://kb.kopano.io/display/WIKI/Kopano-spamd) allow users to
-drag messages into the Junk folder triggering the anti-spam filter to learn it
-as spam. If the user moves the message back to the inbox, the anti-spam filter
-will unlearn it.
+[Kopano-spamd](https://kb.kopano.io/display/WIKI/Kopano-spamd) allow users to drag messages into the Junk folder triggering the anti-spam filter to learn it
+as spam. If the user moves the message back to the inbox, the anti-spam filter will unlearn it.
 
-To allow kopano-spamd integration the kopano and rspamd containers need
-to share the `KOPANO_SPAMD_LIB=/var/lib/kopano/spamd` folder.
-If this directory exists within the
-rspamd container, the spamd-spam and spamd-ham service will be started.
-They will run `rspamc learn_spam` or `rspamc learn_ham`,
-respectively when a message is placed in either `var/lib/kopano/spamd/spam` or
-`var/lib/kopano/spamd/ham`.
+To allow kopano-spamd integration the kopano and rspamd containers need to share the `KOPANO_SPAMD_LIB=/var/lib/kopano/spamd` folder. If this directory exists within the rspamd container, the spamd-spam and spamd-ham service will be started.
+
+They will run `rspamc learn_spam` or `rspamc learn_ham`, respectively when a message is placed in either `var/lib/kopano/spamd/spam` or `var/lib/kopano/spamd/ham`.
 
 ## Logging `SYSLOG_LEVEL`
 

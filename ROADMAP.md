@@ -4,6 +4,12 @@
 
 Clean up default settings in rspamd.conf.docker. Only keep absolutely needed settings
 
+## Rspamd configure demo to work with kopano
+
+```
+MAIL_FLT_METRIC='actions {add_header=6;reject=15;} group "antivirus" { symbol "VIRUS_EICAR" {weight=15;description="Eicar test signature";} symbol "CLAM_VIRUS" {weight=15;description="ClamAV found a Virus";}}'
+MAIL_FLT_LOGGING=warning
+```
 ## Rspamd configure using environment variables
 
 Find a way to configure rspamd using environment variables.

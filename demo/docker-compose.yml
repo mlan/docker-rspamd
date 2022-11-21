@@ -92,6 +92,8 @@ services:
     environment: # Virgin config, ignored on restarts unless FORCE_CONFIG given.
       - WORKER_CONTROLLER=enable_password="${FILT_PASSWD-secret}";
       - METRICS=${FILT_METRIC}
+      - CLASSIFIER_BAYES=${FILT_BAYES}
+      - MILTER_HEADERS=${FILT_HEADERS}
       - DKIM_SELECTOR=${DKIM_SELECTOR-default}
       - SYSLOG_LEVEL=${SYSLOG_LEVEL-}
       - LOGGING=level="${FILT_LOGGING-error}";
