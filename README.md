@@ -60,7 +60,7 @@ services:
       - WORKER_CONTROLLER=password="${FLT_PASSWD-secret}";
       - METRICS=${FLT_METRIC}
       - SYSLOG_LEVEL=${SYSLOG_LEVEL-}
-      - LOGGING=level="${FILT_LOGGING-error}";
+      - LOGGING=level="${FLT_LOGGING-error}";
     volumes:
       - flt:/srv
       - /etc/localtime:/etc/localtime:ro        # Use host timezone
@@ -114,7 +114,7 @@ Rspamd comes with a simple web-based control interface for Rspamd spam filtering
 From the [demo](demo) you can assess the Rspamd WebUI on the URL [`http://localhost:11334`](http://localhost:11334) and log in with the password `demo` .
 
 ```bash
-make filt-web
+make flt-web
 ```
 
 ## Persistent storage
@@ -144,6 +144,9 @@ In the rare event that want to modify the configuration of an existing container
 
 When you create the `mlan/rspamd` container, you can configure the services by passing one or more environment variables or arguments on the docker run command line. Once the services has been configured a lock file is created, to avoid repeating the configuration procedure when the container is restated.
 
+Environment variables has a key and a value: `ENVKEY='envvalue with spaces'`. Here the `ENVKEY` determines in which section the rspamd configuration the `envvalue` which contains key-value pairs will be inserted. Practical this done ny generating configuration files, within the rspamd configuration directory, with file names based on the `ENVKEY` name. Some configuration files have underscore `_` or dash `-` in their names. Both are represented by a underscore in the `ENVKEY` name, e.g. `ANTIVIRUS=log_clean=false;` will put `log_clean=false;` in `/etc/rspamd/local.d/antivirus.conf` and `CLASSIFIER_BAYES='autolearn=[0,6]; min_learns=10; per_user=true; users_enabled=true; allow_learn=true;'`
+It will put `'autolearn=[0,6]; min_learns=10; per_user=true; users_enabled=true; allow_learn=true;'` in `/etc/rspamd/local.d/classifier-bayes.conf`.
+
 ## MTA integration with [mlan/postfix](https://github.com/mlan/docker-postfix)
 
 The [rspamd proxy worker](https://rspamd.com/doc/workers/rspamd_proxy.html#milter-support) in Milter mode, which is enabled by default, interact with Postfix. Use the [Postfix configuration](https://rspamd.com/doc/integration.html#configuring-postfix) to have Postfix scan messages on Rspamd via the milter protocol. The rspamd proxy worker listens to port `11334` by default.
@@ -152,9 +155,9 @@ The [rspamd proxy worker](https://rspamd.com/doc/workers/rspamd_proxy.html#milte
 
 Unlike SpamAssassin, Rspamd suggests the desired [action](https://rspamd.com/doc/faq.html#what-are-rspamd-actions) for a specific message scanned. This could be treated as a recommendation to MTA what it should do with this message. So Rspamd does not keep any quarantined emails.
 
-## Filter metrics
+#### `METRIC`
 
-`FILT_METRIC='actions {greylist=4;add_header=6;rewrite_subject=8;reject=15;} group "antivirus" { symbol "VIRUS_EICAR" {weight=15;description="Eicar test signature";} symbol "CLAM_VIRUS" {weight=15;description="ClamAV found a Virus";}}'`
+Use `METRIC` to set the action thresholds like this for example; `METRIC='actions {greylist=4;add_header=6;rewrite_subject=8;reject=15;}'`
 
 ## Antivirus
 
@@ -167,6 +170,7 @@ The Antivirus module provides integration with virus scanners. The `mlan/rspamd`
 ### ClamAV memory usage
 
 ClamAV holds search strings and regular expression in memory. The algorithms used are from the 1970s and are very memory efficient. The problem is the huge number of virus signatures. This leads to the algorithms' data-structures growing quite large. Consequently, The minimum recommended system requirements are for using [ClamAV](https://www.clamav.net/documents/introduction) is 1GiB.
+
 ## SPF
 
 The SPF module performs checks of the sender’s [SPF](http://www.open-spf.org/) policy.
@@ -177,33 +181,35 @@ The SPF module performs checks of the sender’s [SPF](http://www.open-spf.org/)
 
 Rspamd is configured to check the digital signature of incoming email as well as add digital signatures to outgoing email.
 
-## DKIM signing
+### DKIM signing
 
-[Domain-Keys Identified Mail (DKIM)](https://en.wikipedia.org/wiki/DomainKeys_Identified_Mail) is an [email authentication](https://en.wikipedia.org/wiki/Email_authentication) method designed to detect forged sender addresses in emails. DKIM allows the receiver to check that an email claimed to have come from a specific [domain](https://en.wikipedia.org/wiki/Domain_name) was indeed authorized by the owner of that domain. It achieves this by affixing a [digital signature](https://en.wikipedia.org/wiki/Digital_signature), linked to a domain name, `MAIL_DOMAIN`, to each outgoing email message, which the receiver can verify by using the DKIM key published in the [DNS](https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions) records for that domain.
+[Domain-Keys Identified Mail (DKIM)](https://en.wikipedia.org/wiki/DomainKeys_Identified_Mail) is an [email authentication](https://en.wikipedia.org/wiki/Email_authentication) method designed to detect forged sender addresses in emails. DKIM allows the receiver to check that an email claimed to have come from a specific [domain](https://en.wikipedia.org/wiki/Domain_name) was indeed authorized by the owner of that domain. It achieves this by affixing a [digital signature](https://en.wikipedia.org/wiki/Digital_signature), linked to a domain name, `DKIM_DOMAIN`, to each outgoing email message, which the receiver can verify by using the DKIM key published in the [DNS](https://en.wikipedia.org/wiki/Domain_Name_System_Security_Extensions) records for that domain.
+
+#### `DKIM_DOMAIN` and `DKIM_SELECTOR`
+
+The public key DNS record should appear as a TXT resource record at: `DKIM_SELECTOR._domainkey.DKIM_DOMAIN`. The TXT record to be used with the private key generated at container creation is written here: `/var/lib/rspamd/dkim/DKIM_DOMAIN.DKIM_SELECTOR._domainkey.txt`.
+Default: `DKIM_SELECTOR=default`
+
+A DKIM signing key is generated if both `DKIM_DOMAIN` and `DKIM_SELECTOR` are defined.
 
 #### `DKIM_KEYBITS`
 
 The bit length used when creating new keys. Default: `DKIM_KEYBITS=2048`
 
-#### `DKIM_SELECTOR`
-
-The public key DNS record should appear as a TXT resource record at: `DKIM_SELECTOR._domainkey.MAIL_DOMAIN`. The TXT record to be used with the private key generated at container creation is written here: `/var/db/dkim/MAIL_DOMAIN.DKIM_SELECTOR._domainkey.txt`.
-Default: `DKIM_SELECTOR=default`
-
 #### `DKIM_PRIVATEKEY`
 
 DKIM uses a private and public key pair used for signing and verifying email. A private key is created when the container is created. If you already have a private key you can pass it to the container by using the environment variable `DKIM_PRIVATEKEY`. For convenience the strings `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----` can be omitted form the key string. For example `DKIM_PRIVATEKEY="MIIEpAIBAAKCAQEA04up8hoqzS...1+APIB0RhjXyObwHQnOzhAk"`
 
-The private key is stored here `/var/lib/rspamd/dkim/MAIL_DOMAIN.DKIM_SELECTOR.key`, so alternatively you can copy the private key into the container:
+The private key is stored here `/var/lib/rspamd/dkim/DKIM_DOMAIN.DKIM_SELECTOR.key`, so alternatively you can copy the private key into the container:
 
 ```bash
-docker cp $MAIL_DOMAIN.$DKIM_SELECTOR.key <container_name>:var/lib/rspamd/dkim
+docker cp $DKIM_DOMAIN.$DKIM_SELECTOR.key <container_name>:var/lib/rspamd/dkim
 ```
 
 If you wish to create a new private key you can run:
 
 ```bash
-docker exec -it <container_name> rspamadm dkim_keygen -s $DKIM_SELECTOR -b $DKIM_KEYBITS -d $MAIL_DOMAIN -k /var/lib/rspamd/dkim/$MAIL_DOMAIN.$DKIM_SELECTOR.key
+docker exec -it <container_name> rspamadm dkim_keygen -s $DKIM_SELECTOR -b $DKIM_KEYBITS -d $DKIM_DOMAIN -k /var/lib/rspamd/dkim/$DKIM_DOMAIN.$DKIM_SELECTOR.key
 ```
 
 ## Kopano-spamd integration with [mlan/kopano](https://github.com/mlan/docker-kopano)

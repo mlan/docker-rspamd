@@ -41,8 +41,6 @@ redis {
 classifier {
 	bayes {
 		backend = "redis";
-		per_user = true;
-		allow_learn = true;
 	}
 }
 
@@ -68,4 +66,21 @@ antivirus {
 			VIRUS_EICAR = "Eicar-Signature";
 		}
 	}
+}
+
+metric {
+    group {
+        antivirus {
+            symbol {
+                VIRUS_EICAR {
+                    description = "Eicar test signature";
+                    weight = 15;
+                }
+                CLAM_VIRUS {
+                    description = "ClamAV found a Virus";
+                    weight = 15;
+                }
+            }
+        }
+    }
 }

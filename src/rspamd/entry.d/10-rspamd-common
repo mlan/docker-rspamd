@@ -10,6 +10,7 @@
 # DOCKER_MILT_LOCAL_DIR DOCKER_MILT_RUNAS DOCKER_MILT_LIB DOCKER_DKIM_LIB
 #
 RSPAMD_DKIM_SIGNING_CF=${RSPAMD_DKIM_SIGNING_CF-$DOCKER_MILT_LOCAL_DIR/dkim_signing.conf}
+KOPANO_SPAMD_LIB=${KOPANO_SPAMD_LIB-/var/lib/kopano/spamd}
 
 ##
 ## Configure milter. More information can be found at links below.
@@ -66,16 +67,15 @@ rspamd_setup_dkim() {
 	# generate and activate dkim domainkey.
 	# in case of multi domain generate key for first domain only, but accept it
 	# to be used for all domains specified.
-	local domains=${MAIL_DOMAIN-$(hostname -d)}
-	local domain_main=$(echo $domains | sed 's/\s.*//')
+	local domain=${DKIM_DOMAIN-}
 	local user=$DOCKER_MILT_RUNAS
 	local bits=${DKIM_KEYBITS-2048}
 	local selector=${DKIM_SELECTOR}
-	local keyfile=$DOCKER_DKIM_LIB/$domain_main.$selector.key
-	local txtfile=$DOCKER_DKIM_LIB/$domain_main.$selector.key.pub
+	local keyfile=$DOCKER_DKIM_LIB/$domain.$selector.key
+	local txtfile=$DOCKER_DKIM_LIB/$domain.$selector.key.pub
 	local keystring="$DKIM_PRIVATEKEY"
-	if (dc_is_installed rspamd && [ -n "$selector" ] && [ -n "$domain_main" ]); then
-		dc_log 5 "[rspamd] Setting dkim selector and domain to $selector and $domain_main"
+	if (dc_is_installed rspamd && [ -n "$selector" ] && [ -n "$domain" ]); then
+		dc_log 5 "[rspamd] Setting dkim selector and domain to $selector and $domain"
 		mkdir -p $DOCKER_DKIM_LIB
 		# insert config statements just before last line
 		dc_cond_append -i $RSPAMD_DKIM_SIGNING_CF 'selector = "'$selector'";'
@@ -95,7 +95,7 @@ rspamd_setup_dkim() {
 		fi
 		if [ ! -e $keyfile ]; then
 			dc_log 4 "[rspamd] Generating dkim key: $keyfile"
-			local message="$(rspamadm dkim_keygen -d $domain_main -d $selector -b $bits -k $keyfile 2>&1)"
+			local message="$(rspamadm dkim_keygen -d $domain -d $selector -b $bits -k $keyfile 2>&1)"
 			dc_log 4 "$message"
 			echo "$message" > $txtfile
 		fi
