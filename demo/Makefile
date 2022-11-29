@@ -300,6 +300,9 @@ auth-web-down:
 
 mta-init:
 
+mta-edh:
+	docker-compose exec mta run postfix_update_dhparam
+
 mta-test_smtp:
 	$(call smtp_mail,smtp://$(MTA_FQDN),$(MAIL_FROM),$(AD_USR_CN)@$(MAIL_DOMAIN),$(PLAIN_SUBJ))
 

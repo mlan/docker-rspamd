@@ -27,3 +27,4 @@
 - [demo](demo/Makefile) Now use `flt` instead of `filt`.
 - [demo](demo/Makefile) Added `flt-test_rand`, `flt-config`.
 - [demo](demo/docker-compose.yml) Added - `DKIM_DOMAIN=${MAIL_DOMAIN-example.com}`.
+- [demo](demo/Makefile) Fixed target `mta-edh`.
