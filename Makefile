@@ -26,6 +26,8 @@ push:
 	@read input; [ "$${input}" = "y" ]
 	docker push --all-tags $(BLD_REPO)
 
+build-all: build
+
 build: Dockerfile
 	docker build $(BLD_ARG) $(addprefix --tag $(BLD_REPO):,$(call bld_tags,,$(BLD_VER))) .
 

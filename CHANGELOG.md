@@ -1,6 +1,7 @@
 # 0.9.0
 
 - [docker](Makefile) Use alpine:3.17 (rspamd:3.4 clamav:0.105.1 redis:7.0.5).
+- [docker](Makefile) Add a `build-all` target for compatibility with multistage builds.
 - [docker](Dockerfile) Make sure to merge `rspamd.conf.docker` in `rspamd.conf`.
 - [repo](.) Based on [mlan/postfix-amavis](https://github.com/mlan/docker-postfix).
 - [repo](README.md) Described approach for configure Rspamd using environment variables.
