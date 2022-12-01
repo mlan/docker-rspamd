@@ -21,6 +21,7 @@
 - [test](test/Makefile) Monitor logs to determine when clamd is activated.
 - [test](test/Makefile) Don't advertize multistage builds yet.
 - [test](test/Makefile) Added Bayes initialization.
+- [test](.travis.yml) Updated dist to jammy.
 - [demo](demo/Makefile) Start migration to rspamd.
 - [demo](demo/.env) Now use `FLT_` instead of `FILT_`.
 - [demo](demo/Makefile) Demo now use Rspamd environment variables.
