@@ -1,3 +1,8 @@
+# 1.0.1
+
+- [docker](Makefile) Use alpine:3.18 (rspamd:3.6 clamav:1.1.0 redis:7.0.12).
+- [test](demo/Makefile) Now use the `mariadb-show` instead of `mysqlshow` command in MariaDB image.
+
 # 1.0.0
 
 - [docker](Makefile) Use alpine:3.18 (rspamd:3.5 clamav:1.1.0 redis:7.0.11).
