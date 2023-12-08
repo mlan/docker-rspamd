@@ -1,3 +1,8 @@
+# 1.0.2
+
+- [docker](Makefile) Use alpine:3.19 (rspamd:3.7.4 clamav:1.2.1 redis:7.2.3).
+- [docker](src/docker) Improve debug message in [docker-service.sh](src/docker/bin/docker-service.sh).
+
 # 1.0.1
 
 - [docker](Makefile) Use alpine:3.18 (rspamd:3.6 clamav:1.1.0 redis:7.0.12).
