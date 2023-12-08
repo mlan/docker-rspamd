@@ -95,16 +95,19 @@ test-wait_%:
 	#
 	# Waiting for clamd to open its tcp socket.
 	#
-	while ! docker exec -i $(FLT_NAME) nc -z localhost 3310; do sleep 5; done
+	while ! docker exec -i $(FLT_NAME) nc -z localhost 3310; do sleep 5; done; sleep 5
 	#
 	# Ask clamd to reload signatures.
 	#
-	sleep 5
 	docker exec -i $(FLT_NAME) /bin/sh -c 'echo RELOAD | nc localhost 3310'
 	#
 	# Waiting for clamd to activate.
 	#
 	while ! docker container logs $(FLT_NAME) | grep 'Activating'; do sleep 5; done
+	#
+	# Waiting for rspamd to open its ipc socket.
+	#
+	while ! docker exec -i $(FLT_NAME) rspamadm control recompile 2>/dev/null; do sleep 5; done
 
 test-logs_%:
 	docker container logs $(FLT_NAME)
