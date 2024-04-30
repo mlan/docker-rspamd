@@ -1,3 +1,8 @@
+# 1.0.3
+
+- [docker](Makefile) Use alpine:3.19 (rspamd:3.8.1 clamav:1.2.2 redis:7.2.4).
+- [demo](demo/docker-compose.yml) Remove obsolete element `version` in docker-compose.yml.
+
 # 1.0.2
 
 - [docker](Makefile) Use alpine:3.19 (rspamd:3.7.4 clamav:1.2.1 redis:7.2.3).

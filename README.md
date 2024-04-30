@@ -49,7 +49,7 @@ One convenient way to test the image is to clone the [github](https://github.com
 An example of how to configure an mail filter using docker compose is given below. By it self the mail filter is perhaps not so exiting. A more complete configuration is shown in the [demo](#demo).
 
 ```yaml
-version: '3'
+name: demo
 
 services:
   flt:
