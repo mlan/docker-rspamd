@@ -5,7 +5,7 @@
 
 -include    *.mk
 
-BLD_ARG  ?= --build-arg DIST=alpine --build-arg REL=3.20
+BLD_ARG  ?= --build-arg DIST=alpine --build-arg REL=3.21
 BLD_REPO ?= mlan/rspamd
 BLD_VER  ?= latest
 
