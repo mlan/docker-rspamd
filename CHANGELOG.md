@@ -1,3 +1,7 @@
+# 1.0.6
+
+- [docker](Makefile) Use alpine:3.22 (rspamd:3.11.1 clamav:1.4.2 redis:8.0.2).
+
 # 1.0.5
 
 - [docker](Makefile) Use alpine:3.21 (rspamd:3.10.2 clamav:1.4.1 redis:7.2.5).
